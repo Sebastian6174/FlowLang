@@ -10,7 +10,7 @@
     (comment
      ("%" (arbno (not #\newline))) skip)
     (identifier
-     ("@" (arbno (or letter digit "?"))) symbol)
+     (letter (arbno (or letter digit "?"))) symbol)
     (number
      (digit (arbno digit)) number)
     (number
@@ -39,7 +39,7 @@
     (sentence ("def" identifier "(" (separated-list identifier ",") ")" "{" (separated-list sentence ";") "return" expression "}")
                func-decl-statement)
 
-    (sentence ("print" "(" expresion ")")
+    (sentence ("print" "(" expression ")")
                print-statement)
     
     ;; IDENTIFICADORES, NÚMEROS, COMPLEJOS Y PRIMITIVAS
@@ -62,7 +62,7 @@
     
 
     ;; INVOCACIÓN DE PROCEDIMIENTOS
-    (expresion (identifier "(" (separated-list expresion ",") ")")
+    (expression ("calculate" identifier "(" (separated-list expression ",") ")")
                app-exp)
 
     ;; PRIMITIVAS
@@ -83,13 +83,10 @@
 (define eval-program
   (lambda (pgm)
     (cases program pgm
-      (a-program (sentences) (execute-sentence-list sentences init-env)))
-    )
-  )
+      (a-program (sentences) (execute-sentence-list sentences init-env)))))
 
 (define init-env
-  (lambda () empty-env)
-  )
+  (lambda () empty-env))
 
 ;============================================== EJECUTOR DE SENTENCIAS ===================================================
 
@@ -126,9 +123,33 @@
 
 (define eval-expression
   (lambda (exp env)
-    0
-    )
-  )
+    (cases expression exp
+      (var-exp (id) (apply-env env id))
+      (lit-exp (num) num)
+      (complex-num (a b) a "+" b "i")
+      
+      (bin-primitive-exp (rand1 op rand2)
+                         (let ((arg1 (eval-expression rand1 env))
+                               (arg2 (eval-expression rand2 env)))
+                           (apply-prim-bin op arg1 arg2)))
+      
+      (unary-primitive-exp (op exp)
+                           (let ((arg (eval-expression exp)))
+                             apply-prim-un op arg))
+      
+      (conditional-exp (test-exp true-exp false-exp)
+                       (if (true-value? (eval-expression test-exp env))
+                           (eval-expression true-exp env)
+                           (eval-expression false-exp env)))
+      
+      (app-exp (rator rands)
+               (let ((proc (eval-expression rator env))
+                     (args (eval-rands rands env)))
+                 (if (procval? proc)
+                     (apply-procedure proc args)
+                     (eopl:error 'eval-expression
+                                 "Attempt to apply non-procedure ~s" proc))))
+      )))
 
 ;==================================================== FUNCIONES ==========================================================
 
@@ -147,17 +168,57 @@
           (let ((final-body-env (execute-sentence-list body-sents args-env)))
             (eval-expression return-exp final-body-env)))))))
 
+;=================================================== EVAL RANDS ==========================================================
+
+(define eval-rands
+  (lambda (rands env)
+    (map (lambda (x) (eval-rand x env)) rands)))
+
+(define eval-rand
+  (lambda (rand env)
+    (cases expression rand
+      (var-exp (id)
+               (indirect-target
+                (let ((ref (apply-env-ref env id)))
+                  (cases target (primitive-deref ref)
+                    (direct-target (expval) ref)
+                    (indirect-target (ref1) ref1)))))
+      (else
+       (direct-target (eval-expression rand env))))))
+
+;===================================================== BOOLEANOS =========================================================
+
+(define true-value?
+  (lambda (v)
+    (if (eqv? v "true") #t #f)))
+
+;==================================================== PRIMITIVAS =========================================================
+
+(define apply-prim-bin
+  (lambda (prim arg1 arg2)
+    (cases bin-primitive prim
+      (sum-prim () (+ arg1 arg2))
+      (sub-prim () (- arg1 arg2))
+      (div-prim () (/ arg1 arg2))
+      (mult-prim () (* arg1 arg2))
+      (concat-prim () (string-append arg1 arg2)))))
+
+(define apply-prim-un
+  (lambda (prim arg)
+    (cases unary-primitive prim
+      (length-prim () (length arg))
+      (add1-prim () (+ arg 1))
+      (sub1-prim () (- arg 1)))))
+
 ;========================================= TIPOS DE DATOS REFERENCIA Y BLANCO ============================================
 
 (define-datatype target target?
   (direct-target (expval expval?))
-  (indirect-target (ref ref-to-direct-target?))
-  )
+  (indirect-target (ref ref-to-direct-target?)))
 
 (define-datatype reference reference?
   (a-ref (position integer?)
-         (vec vector?))
-  )
+         (vec vector?)))
 
 (define expval?
   (lambda (x)
