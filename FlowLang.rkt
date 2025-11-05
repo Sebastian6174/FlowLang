@@ -1,4 +1,6 @@
 #lang eopl
+; require racket/file
+;importar file->string función
 
 ;================================================== SCANNER Y GRAMÁTICA ==================================================
 
@@ -15,10 +17,13 @@
      (digit (arbno digit)) number)
     (number
      ("-" digit (arbno digit)) number)
-    (float
+    (number
      (digit (arbno digit) "." digit (arbno digit)) number)
     (text
      ("\"" (arbno (not #\")) "\"")
+     string)
+    (boolean
+     ((or "true" "false"))
      string)
     )
   )
@@ -28,27 +33,44 @@
 (define grammar
   '(
     ;; PROGRAMA
-    (program ((arbno sentence)) a-program)
+    (program ((arbno sentence) "show" expression) a-program)
 
     ;; SENTENCIAS
     (sentence (expression) expression-statement)
 
-    (sentence ("let" identifier "=" expression ";")
-              var-decl-statement)
+    (sentence ("let" (separated-list assignment ",") ";") vars-decl-statement)
+
+    (sentence ("set" identifier "=" expression ";") assignment-statement)
 
     (sentence ("def" identifier "(" (separated-list identifier ",") ")" "{" (separated-list sentence ";") "return" expression "}")
                func-decl-statement)
 
-    (sentence ("print" "(" expression ")")
+    (sentence ("const" (separated-list assignment ",") ";")
+              const-decl-statement)
+
+    (sentence ("print" "(" expression ")" ";")
                print-statement)
+
+    ;; ASIGNACIÓN DE VARIABLELS
+    (assignment (identifier "=" expression)
+                an-assignment)
     
-    ;; IDENTIFICADORES, NÚMEROS, COMPLEJOS Y PRIMITIVAS
+    ;; IDENTIFICADORES, NÚMEROS, COMPLEJOS, BOOLEANOS Y NULL
     (expression (identifier) var-exp)
     (expression (number) lit-exp)
-    (expression ("complex" "("number "," number")") complex-num)
+    (expression (text) text-exp)
+    (expression (boolean) bool-exp)
+    (expression ("complex" "("number "," number")") complex-num-exp)
+
+    ;; LISTAS
+    (expression ("[" (separated-list expression ",") "]") list-exp)
+
+    ;; DICCIONARIOS
     
+
+    ;; PRIMITIVAS
     (expression ("(" expression bin-primitive expression ")")
-               bin-primitive-exp)
+                bin-primitive-exp) ; Usar print con la primitiva unaria
 
     (expression (unary-primitive "(" expression ")")
                unary-primitive-exp)
@@ -57,21 +79,29 @@
     (expression ("if" "(" expression ")" "{" expression "}" "else" "{" expression "}")
                conditional-exp)
 
-    ;; BLOQUES LET
-    ;(expression ("let" "{"identifier "=" expression) let-exp)
-    
-
     ;; INVOCACIÓN DE PROCEDIMIENTOS
     (expression ("calculate" identifier "(" (separated-list expression ",") ")")
                app-exp)
 
-    ;; PRIMITIVAS
+    ;; PRIMITIVAS PARA ENTEROS Y FLOTANTES
     (bin-primitive ("+") sum-prim)
     (bin-primitive ("~") sub-prim)
     (bin-primitive ("/") div-prim)
     (bin-primitive ("*") mult-prim)
     (bin-primitive ("concat") concat-prim)
 
+    ;; PRIMITIVAS PARA BOOLEANOS
+    (bin-primitive (">") greater-prim)
+    (bin-primitive ("<") less-prim)
+    (bin-primitive ("==") eq-prim)
+    (bin-primitive (">=") greater-eq-prim)
+    (bin-primitive ("<=") less-eq-prim)
+    (bin-primitive ("!=") dif-prim)
+    (bin-primitive ("and") and-prim)
+    (bin-primitive ("or") or-prim)
+    (unary-primitive ("not") neg-prim)
+    
+    ;; PRIMITIVAS UNARIAS
     (unary-primitive ("length") length-prim)
     (unary-primitive ("add1") add1-prim)
     (unary-primitive ("sub1") sub1-prim)
@@ -83,25 +113,60 @@
 (define eval-program
   (lambda (pgm)
     (cases program pgm
-      (a-program (sentences) (execute-sentence-list sentences init-env)))))
+      (a-program (sentences final-exp)
+                 (let ((final-env (execute-sentence-list sentences (init-env))))
+                   (eval-expression final-exp final-env))))))
 
 (define init-env
-  (lambda () empty-env))
+  (lambda () (empty-env)))
 
 ;============================================== EJECUTOR DE SENTENCIAS ===================================================
 
 (define execute-sentence-list
   (lambda (sentences env)
-    (if (null? sentences) "Fin del programa"
+    (if (null? sentences) env
         (let ((new-env (execute-sentence (car sentences) env)))
           (execute-sentence-list (cdr sentences) new-env)))))
 
 (define execute-sentence
   (lambda (sent env)
     (cases sentence sent
-      (var-decl-statement (id exp)
-        (let ((val (eval-expression exp env)))
-          (extend-env (list id) (list val) env)))
+
+      (vars-decl-statement (assignments)
+        (let ((ids (map
+                     (lambda (a)
+                       (cases assignment a (an-assignment (id exp) id)))
+                     assignments))
+              (vals (map
+                      (lambda (a)
+                        (cases assignment a (an-assignment (id exp)
+                          (eval-expression exp env))))
+                      assignments)))
+          (let ((wrapped-vals (map
+                               (lambda (v) (direct-target v))
+                               vals)))
+          (extend-env ids wrapped-vals env))))
+
+      (const-decl-statement (assignments)
+        (let ((ids (map
+                     (lambda (a)
+                       (cases assignment a (an-assignment (id exp) id)))
+                     assignments))
+              (vals (map
+                      (lambda (a)
+                        (cases assignment a (an-assignment (id exp)
+                          (eval-expression exp env))))
+                      assignments)))
+          (let ((wrapped-vals (map
+                               (lambda (v) (const-target v))
+                               vals)))
+          (extend-env ids wrapped-vals env))))
+
+      (assignment-statement(id exp)
+        (let ((new-val (eval-expression exp env)))
+          (let ((ref (apply-env-ref env id)))
+            (setref! ref new-val)))
+        env)
 
       (func-decl-statement (func-name param-ids body-sents return-exp)
         (let ((vec (make-vector 1))) 
@@ -112,7 +177,11 @@
 
       (print-statement (exp)
         (let ((val (eval-expression exp env)))
-          (eopl:printf "~s~n" val))
+          (begin
+            (display val)
+            (newline)
+            )
+          )
         env)
 
       (expression-statement (exp)
@@ -126,7 +195,10 @@
     (cases expression exp
       (var-exp (id) (apply-env env id))
       (lit-exp (num) num)
-      (complex-num (a b) a "+" b "i")
+      (text-exp (txt) txt)
+      (bool-exp (boolean) boolean)
+      (complex-num-exp (a b) a "+" b "i")
+      (list-exp (elements) elements)
       
       (bin-primitive-exp (rand1 op rand2)
                          (let ((arg1 (eval-expression rand1 env))
@@ -168,7 +240,7 @@
           (let ((final-body-env (execute-sentence-list body-sents args-env)))
             (eval-expression return-exp final-body-env)))))))
 
-;=================================================== EVAL RANDS ==========================================================
+;=================================================== EVAL-RANDS ==========================================================
 
 (define eval-rands
   (lambda (rands env)
@@ -182,7 +254,8 @@
                 (let ((ref (apply-env-ref env id)))
                   (cases target (primitive-deref ref)
                     (direct-target (expval) ref)
-                    (indirect-target (ref1) ref1)))))
+                    (indirect-target (ref1) ref1)
+                    (const-target (expval) ref)))))
       (else
        (direct-target (eval-expression rand env))))))
 
@@ -190,31 +263,45 @@
 
 (define true-value?
   (lambda (v)
-    (if (eqv? v "true") #t #f)))
+    (if (or (eqv? v "false")
+            (eqv? v 0)
+            (eqv? "null"))
+        #t #f)))
 
 ;==================================================== PRIMITIVAS =========================================================
 
 (define apply-prim-bin
-  (lambda (prim arg1 arg2)
+  (lambda (arg1 prim arg2)
     (cases bin-primitive prim
       (sum-prim () (+ arg1 arg2))
       (sub-prim () (- arg1 arg2))
       (div-prim () (/ arg1 arg2))
       (mult-prim () (* arg1 arg2))
-      (concat-prim () (string-append arg1 arg2)))))
+      (concat-prim () (string-append arg1 arg2))
+      (greater-prim () (if (> arg1 arg2) #t #f))
+      (less-prim () (if (< arg1 arg2) #t #f))
+      (eq-prim () (if (eq? arg1 arg2) #t #f))
+      (greater-eq-prim () (if (or (> arg1 arg2) (eq? arg1 arg2)) #t #f))
+      (less-eq-prim () (if (or (< arg1 arg2) (eq? arg1 arg2)) #t #f))
+      (dif-prim () (if (eq? arg1 arg2) #f #t))
+      (and-prim () (if (and (true-value? arg1) (true-value? arg2)) #t #f))
+      (or-prim () (if (or (true-value? arg1) (true-value? arg2)) #t #f))
+      )))
 
 (define apply-prim-un
   (lambda (prim arg)
     (cases unary-primitive prim
       (length-prim () (length arg))
       (add1-prim () (+ arg 1))
-      (sub1-prim () (- arg 1)))))
+      (sub1-prim () (- arg 1))
+      (neg-prim () (not arg)))))
 
 ;========================================= TIPOS DE DATOS REFERENCIA Y BLANCO ============================================
 
 (define-datatype target target?
   (direct-target (expval expval?))
-  (indirect-target (ref ref-to-direct-target?)))
+  (indirect-target (ref ref-to-direct-target?))
+  (const-target (expval expval?)))
 
 (define-datatype reference reference?
   (a-ref (position integer?)
@@ -226,6 +313,7 @@
         (boolean? x)
         (null? x)
         (list? x)
+        (string? x)
         ;(dictionary? x)
         ;(prototype? x)
         (procval? x)
@@ -238,15 +326,18 @@
            (a-ref (pos vec)
                   (cases target (vector-ref vec pos)
                     (direct-target (v) #t)
-                    (indirect-target (v) #f)))))))
+                    (indirect-target (v) #f)
+                    (const-target (v) #t)))))))
 
 (define deref
   (lambda (ref)
     (cases target (primitive-deref ref)
       (direct-target (expval) expval)
+      (const-target (expval) expval)
       (indirect-target (ref1)
                        (cases target (primitive-deref ref1)
                          (direct-target (expval) expval)
+                         (const-target (expval) expval)
                          (indirect-target (p)
                                           (eopl:error 'deref
                                                       "Illegal reference: ~s" ref1)))))))
@@ -258,11 +349,19 @@
 
 (define setref!
   (lambda (ref expval)
-    (let
-        ((ref (cases target (primitive-deref ref)
-                (direct-target (expval1) ref)
-                (indirect-target (ref1) ref1))))
-      (primitive-setref! ref (direct-target expval)))))
+
+    (let ((final-ref (cases target (primitive-deref ref)
+                       (direct-target (expval1) ref)
+                       (indirect-target (ref1) ref1)
+                       (const-target (val) ref)))) 
+      (cases target (primitive-deref final-ref)
+        (direct-target (val) 
+         (primitive-setref! final-ref (direct-target expval)))
+        (indirect-target (r)
+         (primitive-setref! final-ref (direct-target expval)))
+        (const-target (val)
+          (eopl:error 'setref! "ERROR: No se puede mutar una constante."))
+        ))))
 
 (define primitive-setref!
   (lambda (ref val)
@@ -358,3 +457,5 @@
     (sllgen:make-stream-parser 
       scanner
       grammar)))
+
+;(interpretador)
