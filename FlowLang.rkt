@@ -66,6 +66,8 @@
     (expression ("[" (separated-list expression ",") "]") list-exp)
 
     ;; DICCIONARIOS
+
+    (expression("{" (separated-list expression ";" expression "," ) "}" ) dic-exp)
     
 
     ;; PRIMITIVAS
@@ -108,6 +110,17 @@
     )
   )
 
+(define diccionario?
+  (lambda (x)
+    (cases expression x
+      (dic-exp (identifiers expression) #t)
+      (else #f)
+      )
+    )
+  )
+      
+
+    
 ;=============================================== EVALUADOR DE PROGRAMA ===================================================
 
 (define eval-program
@@ -199,6 +212,7 @@
       (bool-exp (boolean) boolean)
       (complex-num-exp (a b) a "+" b "i")
       (list-exp (elements) elements)
+      (dic-exp (identifiers expression) expression)
       
       (bin-primitive-exp (rand1 op rand2)
                          (let ((arg1 (eval-expression rand1 env))
@@ -458,4 +472,4 @@
       scanner
       grammar)))
 
-;(interpretador)
+(interpretador)
