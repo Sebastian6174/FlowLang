@@ -42,7 +42,7 @@
 
     (sentence ("set" identifier "=" expression ";") assignment-statement)
 
-    (sentence ("def" identifier "(" (separated-list identifier ",") ")" "{" (separated-list sentence ";") "return" expression "}")
+    (sentence ("def" identifier "(" (separated-list identifier ",") ")" "{" (arbno sentence) "return" expression ";" "}")
                func-decl-statement)
 
     (sentence ("const" (separated-list assignment ",") ";")
@@ -60,7 +60,7 @@
                   "{" (arbno sentence) "}")
               for-statement)
     
-    (sentence ("if" "(" expression ")"
+    (sentence ("if" expression
                   "{" (arbno sentence) "}"
                 "else"
                   "{" (arbno sentence) "}")
@@ -382,7 +382,7 @@
                              (apply-prim-un op arg)))
       
       (app-exp (rator rands)
-               (let ((proc (eval-expression rator env))
+               (let ((proc (apply-env env rator))
                      (args (eval-rands rands env)))
                  (if (procval? proc)
                      (apply-procedure proc args)
