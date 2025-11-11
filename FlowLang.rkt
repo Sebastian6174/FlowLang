@@ -52,6 +52,14 @@
                print-statement)
 
     ;; ESTRUCTURAS DE CONTROL
+    (sentence ("while" "("expression")"
+                  "{" (arbno sentence) "}")
+              while-statement)
+
+    (sentence ("for" identifier "in" expression
+                  "{" (arbno sentence) "}")
+              for-statement)
+    
     (sentence ("if" "(" expression ")"
                   "{" (arbno sentence) "}"
                 "else"
@@ -216,6 +224,18 @@
               )
           ))
 
+      (for-statement (id list-exp body-sents)
+        (let ((list-val (eval-expression list-exp env)))
+          (if (not (list? list-val))
+              (eopl:error 'execute-sentence 
+                          "La expresión en un 'for' debe ser una lista. Se recibió: ~s"
+                          list-val)
+                (for-loop id list-val body-sents env)
+                )))
+
+      (while-statement (condition-exp sents)
+          (while-loop condition-exp sents env))
+
       (switch-statement (switch-val-exp case-clauses default-sents)
         (let ((switch-val (eval-expression switch-val-exp env)))
           (find-winner case-clauses default-sents switch-val env)))
@@ -240,7 +260,7 @@
         (eval-expression exp env) 
         env))))
 
-;============================================ FUNCIÓN AUXILIAR PARA SWITCH ===============================================
+;=============================================== AUXILIAR PARA SWITCH ====================================================
 
 (define find-winner
   (lambda (remaining-cases default-sents switch-val env)
@@ -254,6 +274,33 @@
                           (if (equal? switch-val case-val)
                               (execute-sentence-list case-sents env)
                               (find-winner (cdr remaining-cases))))))))))
+
+;================================================ AUXILIAR PARA WHILE ====================================================
+
+(define while-loop
+  (lambda (condition-exp code-block current-env)
+    (if (true-value? (eval-expression condition-exp current-env))
+        (let ((new-env (execute-sentence-list code-block current-env)))
+          (while-loop condition-exp code-block new-env))
+        current-env)))
+
+;================================================= AUXILIAR PARA FOR =====================================================
+
+(define for-loop
+ (lambda (id values-remaining body-sents current-env)
+   (cond
+     ((null? values-remaining)
+      current-env)
+     (else
+      (let* ((current-val (car values-remaining))
+             (loop-env (extend-env 
+                        (list id)
+                        (list (direct-target current-val))
+                        current-env))
+             (next-env (execute-sentence-list body-sents loop-env))
+             )
+        (for-loop id (cdr values-remaining) body-sents next-env)
+        )))))
 
 ;============================================== EVALUADOR DE EXPRESIONES =================================================
 
