@@ -10,7 +10,7 @@
     (white-sp
      (whitespace) skip)
     (comment
-     ("%" (arbno (not #\newline))) skip)
+     ("//" (arbno (not #\newline))) skip)
     (identifier
      (letter (arbno (or letter digit "?"))) symbol)
     (number
@@ -20,8 +20,8 @@
     (number
      (digit (arbno digit) "." digit (arbno digit)) number)
     (text
-     ("\"" (arbno (not #\")) "\"")
-     string)
+      ("\"" (arbno (not #\")) "\"")
+      string)
     (boolean
      ((or "true" "false"))
      string)
@@ -51,6 +51,30 @@
     (sentence ("print" "(" expression ")" ";")
                print-statement)
 
+    ;; ESTRUCTURAS DE CONTROL
+    (sentence ("while" "("expression")"
+                  "{" (arbno sentence) "}")
+              while-statement)
+
+    (sentence ("for" identifier "in" expression
+                  "{" (arbno sentence) "}")
+              for-statement)
+    
+    (sentence ("if" "(" expression ")"
+                  "{" (arbno sentence) "}"
+                "else"
+                  "{" (arbno sentence) "}")
+                if-statement)
+
+    (sentence ("switch" expression "{"
+                  (arbno case-clause)
+                  "default" "{" (arbno sentence) "}"
+                "}")
+                switch-statement)
+
+    (case-clause ("case" expression"{" (arbno sentence) "}")
+                 a-case-clause)
+    
     ;; ASIGNACIÓN DE VARIABLELS
     (assignment (identifier "=" expression)
                 an-assignment)
@@ -60,36 +84,53 @@
     (expression (number) lit-exp)
     (expression (text) text-exp)
     (expression (boolean) bool-exp)
-    (expression ("complex" "("number "," number")") complex-num-exp)
+    
+    (expression ("complex" "("expression "," expression")")
+                complex-num-exp)
 
     ;; LISTAS
+
+    (expression ("empty")
+                empty-exp)
+
+    (expression ("append" "(" (separated-list expression ",") ")")
+                append-exp)
+    
     (expression ("[" (separated-list expression ",") "]") list-exp)
+
+    (expression ("list" "(" (separated-list expression ",") ")")
+                list-exp)
+
+    (expression ("create-list" "(" expression "," expression ")")
+                create-list-exp)
+
+    (expression ("ref-list" "(" expression "," expression ")")
+                ref-list-exp)
+
+    (expression ("set-list" "(" expression "," expression "," expression ")")
+                set-list-exp)
 
     ;; DICCIONARIOS
 
     (expression("{" (separated-list expression ";" expression "," ) "}" ) dic-exp)
-    
 
     ;; PRIMITIVAS
     (expression ("(" expression bin-primitive expression ")")
-                bin-primitive-exp) ; Usar print con la primitiva unaria
+                bin-primitive-exp)
 
     (expression (unary-primitive "(" expression ")")
-               unary-primitive-exp)
-
-    ;; CONDICIONALES
-    (expression ("if" "(" expression ")" "{" expression "}" "else" "{" expression "}")
-               conditional-exp)
+                unary-primitive-exp)
 
     ;; INVOCACIÓN DE PROCEDIMIENTOS
     (expression ("calculate" identifier "(" (separated-list expression ",") ")")
                app-exp)
-
+    
     ;; PRIMITIVAS PARA ENTEROS Y FLOTANTES
     (bin-primitive ("+") sum-prim)
-    (bin-primitive ("~") sub-prim)
+    (bin-primitive ("-") sub-prim)
     (bin-primitive ("/") div-prim)
     (bin-primitive ("*") mult-prim)
+    (bin-primitive ("%") mod-prim)
     (bin-primitive ("concat") concat-prim)
 
     ;; PRIMITIVAS PARA BOOLEANOS
@@ -102,6 +143,12 @@
     (bin-primitive ("and") and-prim)
     (bin-primitive ("or") or-prim)
     (unary-primitive ("not") neg-prim)
+
+    ;; PRIMITIVAS PARA LISTAS
+    (unary-primitive ("empty?") empty-prim)
+    (unary-primitive ("list?") is-list-prim)
+    (unary-primitive ("head") head-prim)
+    (unary-primitive ("tail") tail-prim)
     
     ;; PRIMITIVAS UNARIAS
     (unary-primitive ("length") length-prim)
@@ -110,17 +157,6 @@
     )
   )
 
-(define diccionario?
-  (lambda (x)
-    (cases expression x
-      (dic-exp (identifiers expression) #t)
-      (else #f)
-      )
-    )
-  )
-      
-
-    
 ;=============================================== EVALUADOR DE PROGRAMA ===================================================
 
 (define eval-program
@@ -181,6 +217,30 @@
             (setref! ref new-val)))
         env)
 
+      (if-statement (test-exp then-sents else-sents)
+        (let ((test-val (eval-expression test-exp env)))
+          (if (true-value? test-val)
+              (execute-sentence-list then-sents env)
+              (execute-sentence-list else-sents env)
+              )
+          ))
+
+      (for-statement (id list-exp body-sents)
+        (let ((list-val (eval-expression list-exp env)))
+          (if (not (list? list-val))
+              (eopl:error 'execute-sentence 
+                          "La expresión en un 'for' debe ser una lista. Se recibió: ~s"
+                          list-val)
+                (for-loop id list-val body-sents env)
+                )))
+
+      (while-statement (condition-exp sents)
+          (while-loop condition-exp sents env))
+
+      (switch-statement (switch-val-exp case-clauses default-sents)
+        (let ((switch-val (eval-expression switch-val-exp env)))
+          (find-winner case-clauses default-sents switch-val env)))
+
       (func-decl-statement (func-name param-ids body-sents return-exp)
         (let ((vec (make-vector 1))) 
           (let ((new-env (extended-env-record (list func-name) vec env)))
@@ -201,6 +261,48 @@
         (eval-expression exp env) 
         env))))
 
+;=============================================== AUXILIAR PARA SWITCH ====================================================
+
+(define find-winner
+  (lambda (remaining-cases default-sents switch-val env)
+    (cond
+      ((null? remaining-cases)
+       (execute-sentence-list default-sents env))
+      (else
+       (cases case-clause (car remaining-cases)
+         (a-case-clause (case-val-exp case-sents)
+                        (let ((case-val (eval-expression case-val-exp env)))
+                          (if (equal? switch-val case-val)
+                              (execute-sentence-list case-sents env)
+                              (find-winner (cdr remaining-cases))))))))))
+
+;================================================ AUXILIAR PARA WHILE ====================================================
+
+(define while-loop
+  (lambda (condition-exp code-block current-env)
+    (if (true-value? (eval-expression condition-exp current-env))
+        (let ((new-env (execute-sentence-list code-block current-env)))
+          (while-loop condition-exp code-block new-env))
+        current-env)))
+
+;================================================= AUXILIAR PARA FOR =====================================================
+
+(define for-loop
+ (lambda (id values-remaining body-sents current-env)
+   (cond
+     ((null? values-remaining)
+      current-env)
+     (else
+      (let* ((current-val (car values-remaining))
+             (loop-env (extend-env 
+                        (list id)
+                        (list (direct-target current-val))
+                        current-env))
+             (next-env (execute-sentence-list body-sents loop-env))
+             )
+        (for-loop id (cdr values-remaining) body-sents next-env)
+        )))))
+
 ;============================================== EVALUADOR DE EXPRESIONES =================================================
 
 (define eval-expression
@@ -208,25 +310,81 @@
     (cases expression exp
       (var-exp (id) (apply-env env id))
       (lit-exp (num) num)
-      (text-exp (txt) txt)
+      (text-exp (txt) (format-text txt))
       (bool-exp (boolean) boolean)
-      (complex-num-exp (a b) a "+" b "i")
-      (list-exp (elements) elements)
-      (dic-exp (identifiers expression) expression)
+
       
+
+      (complex-num-exp (real-exp imag-exp) (let ((a (eval-expression real-exp env))
+                                                 (b (eval-expression imag-exp env)))
+                                             (if (and (number? a) (number? b))
+                                                 (make-rectangular a b)
+                                                 (eopl:error 'eval-expression "Arguments for 'complex' must be numbers"))))
+
+      (empty-exp () empty)
+
+      (list-exp (elements)
+                (map (lambda (elem) (eval-expression elem env))
+                     elements))
+      (dic-exp (identifiers expression)
+               (list
+                (cons 'keys identifiers)
+                (cons 'values expression)))
+
+      (create-list-exp (elem-exp lst-exp)
+                       (let ((elem (eval-expression elem-exp env)))
+                         (let ((lst (eval-expression lst-exp env)))
+                           (if (list? lst)
+                               (cons elem lst)
+                               (eopl:error 'eval-expression
+                                           "The second argument in 'create-list' must be a list. Recieved: ~s"
+                                           lst)))))
+
+      (append-exp (args)
+                  (let ((evaluated-args (map (lambda (arg-exp) (eval-expression arg-exp env))
+                                             args)))
+                    (if (and map list? evaluated-args)
+                        (apply append evaluated-args)
+                        (eopl:error 'eval-expression 
+                                    "All the arguments for 'append' must be lists."))))
+
+      (ref-list-exp (lst-exp idx-exp)
+        (let ((lst (eval-expression lst-exp env))
+              (i (eval-expression idx-exp env)))
+          (if (and (list? lst)
+                   (integer? i)
+                   (>= i 0)
+                   (< i (length lst)))
+              (list-ref lst i)
+              "null")))
+
+      (set-list-exp (lst-exp idx-exp val-exp)
+        (let ((lst (eval-expression lst-exp env))
+              (i (eval-expression idx-exp env))
+              (valor (eval-expression val-exp env)))
+          (if (and (list? lst)
+                   (integer? i)
+                   (>= i 0)
+                   (< i (length lst)))
+              (let loop ((n 0) (current-lst lst))
+                (cond
+                  ((null? current-lst) '())
+                  ((= n i)
+                   (cons valor (cdr current-lst)))
+                  (else
+                   (cons (car current-lst)
+                         (loop (+ n 1) (cdr current-lst))))))
+              (eopl:error 'eval-expression
+                          "Índice inválido ~s para set-list." i))))
+
       (bin-primitive-exp (rand1 op rand2)
                          (let ((arg1 (eval-expression rand1 env))
                                (arg2 (eval-expression rand2 env)))
-                           (apply-prim-bin op arg1 arg2)))
+                           (apply-prim-bin arg1 op arg2)))
       
       (unary-primitive-exp (op exp)
-                           (let ((arg (eval-expression exp)))
-                             apply-prim-un op arg))
-      
-      (conditional-exp (test-exp true-exp false-exp)
-                       (if (true-value? (eval-expression test-exp env))
-                           (eval-expression true-exp env)
-                           (eval-expression false-exp env)))
+                           (let ((arg (eval-expression exp env)))
+                             (apply-prim-un op arg)))
       
       (app-exp (rator rands)
                (let ((proc (eval-expression rator env))
@@ -273,14 +431,21 @@
       (else
        (direct-target (eval-expression rand env))))))
 
+
 ;===================================================== BOOLEANOS =========================================================
 
 (define true-value?
   (lambda (v)
-    (if (or (eqv? v "false")
+    (not (or (eqv? v "false")
             (eqv? v 0)
-            (eqv? "null"))
-        #t #f)))
+            (eqv? v "null")))))
+
+;================================================= STRINGS Y LISTAS ======================================================
+
+(define format-text
+  (lambda (txt)
+    (substring txt 1 (- (string-length txt) 1))
+    ))
 
 ;==================================================== PRIMITIVAS =========================================================
 
@@ -291,24 +456,31 @@
       (sub-prim () (- arg1 arg2))
       (div-prim () (/ arg1 arg2))
       (mult-prim () (* arg1 arg2))
+      (mod-prim () (modulo arg1 arg2))
       (concat-prim () (string-append arg1 arg2))
-      (greater-prim () (if (> arg1 arg2) #t #f))
-      (less-prim () (if (< arg1 arg2) #t #f))
-      (eq-prim () (if (eq? arg1 arg2) #t #f))
-      (greater-eq-prim () (if (or (> arg1 arg2) (eq? arg1 arg2)) #t #f))
-      (less-eq-prim () (if (or (< arg1 arg2) (eq? arg1 arg2)) #t #f))
-      (dif-prim () (if (eq? arg1 arg2) #f #t))
-      (and-prim () (if (and (true-value? arg1) (true-value? arg2)) #t #f))
-      (or-prim () (if (or (true-value? arg1) (true-value? arg2)) #t #f))
+      (greater-prim () (if (> arg1 arg2) "true" "false"))
+      (less-prim () (if (< arg1 arg2) "true" "false"))
+      (eq-prim () (if (eq? arg1 arg2) "true" "false"))
+      (greater-eq-prim () (if (or (> arg1 arg2) (eq? arg1 arg2)) "true" "false"))
+      (less-eq-prim () (if (or (< arg1 arg2) (eq? arg1 arg2)) "true" "false"))
+      (dif-prim () (if (eq? arg1 arg2) "false" "true"))
+      (and-prim () (if (and (true-value? arg1) (true-value? arg2)) "true" "false"))
+      (or-prim () (if (or (true-value? arg1) (true-value? arg2)) "true" "false"))
       )))
 
 (define apply-prim-un
   (lambda (prim arg)
     (cases unary-primitive prim
-      (length-prim () (length arg))
+      (length-prim () (if (string? arg)
+                          (- (string-length arg) 2)
+                          (length arg)))
       (add1-prim () (+ arg 1))
       (sub1-prim () (- arg 1))
-      (neg-prim () (not arg)))))
+      (neg-prim () (not arg))
+      (empty-prim () (null? arg))
+      (is-list-prim () (list? arg))
+      (head-prim () (car arg))
+      (tail-prim () (cdr arg)))))
 
 ;========================================= TIPOS DE DATOS REFERENCIA Y BLANCO ============================================
 
