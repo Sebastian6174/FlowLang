@@ -52,29 +52,20 @@
                print-statement)
 
     ;; ESTRUCTURAS DE CONTROL
-    (expression ("if" "(" expression ")"
-                  "{" block-body "}"
+    (sentence ("if" "(" expression ")"
+                  "{" (arbno sentence) "}"
                 "else"
-                  "{" block-body "}")
-                if-exp)
+                  "{" (arbno sentence) "}")
+                if-statement)
 
-    (expression ("switch" expression "{"
+    (sentence ("switch" expression "{"
                   (arbno case-clause)
-                  "default" ":" "{" block-body "}" 
+                  "default" "{" (arbno sentence) "}"
                 "}")
-                switch-exp)
+                switch-statement)
 
-    (case-clause ("case" expression ":"
-                   "{" block-body "}") 
+    (case-clause ("case" expression"{" (arbno sentence) "}")
                  a-case-clause)
-    
-    (block-body ((arbno sentence ";") optional-return)
-                a-block-body)
-
-    (optional-return ("return" expression) 
-                     a-return)
-    
-    (optional-return () no-return)
     
     ;; ASIGNACIÓN DE VARIABLELS
     (assignment (identifier "=" expression)
@@ -217,6 +208,18 @@
             (setref! ref new-val)))
         env)
 
+      (if-statement (test-exp then-sents else-sents)
+        (let ((test-val (eval-expression test-exp env)))
+          (if (true-value? test-val)
+              (execute-sentence-list then-sents env)
+              (execute-sentence-list else-sents env)
+              )
+          ))
+
+      (switch-statement (switch-val-exp case-clauses default-sents)
+        (let ((switch-val (eval-expression switch-val-exp env)))
+          (find-winner case-clauses default-sents switch-val env)))
+
       (func-decl-statement (func-name param-ids body-sents return-exp)
         (let ((vec (make-vector 1))) 
           (let ((new-env (extended-env-record (list func-name) vec env)))
@@ -237,6 +240,21 @@
         (eval-expression exp env) 
         env))))
 
+;============================================ FUNCIÓN AUXILIAR PARA SWITCH ===============================================
+
+(define find-winner
+  (lambda (remaining-cases default-sents switch-val env)
+    (cond
+      ((null? remaining-cases)
+       (execute-sentence-list default-sents env))
+      (else
+       (cases case-clause (car remaining-cases)
+         (a-case-clause (case-val-exp case-sents)
+                        (let ((case-val (eval-expression case-val-exp env)))
+                          (if (equal? switch-val case-val)
+                              (execute-sentence-list case-sents env)
+                              (find-winner (cdr remaining-cases))))))))))
+
 ;============================================== EVALUADOR DE EXPRESIONES =================================================
 
 (define eval-expression
@@ -247,24 +265,7 @@
       (text-exp (txt) (format-text txt))
       (bool-exp (boolean) boolean)
 
-      (if-exp (test-exp then-block else-block)
-        (let ((test-val (eval-expression test-exp env)))
-          (if (true-value? test-val)
-              (eval-block-body then-block env)
-              (eval-block-body else-block env))))
-              
-      (switch-exp (switch-val-exp case-clauses default-block)
-        (let ((switch-val (eval-expression switch-val-exp env)))
-          (let loop ((remaining-cases case-clauses))
-            (if (null? remaining-cases)
-                (eval-block-body default-block env)
-                (let ((current-case (car remaining-cases)))
-                  (cases case-clause current-case
-                    (a-case-clause (case-val-exp case-block)
-                      (let ((case-val (eval-expression case-val-exp env)))
-                        (if (equal? switch-val case-val)
-                            (eval-block-body case-block env)
-                            (loop (cdr remaining-cases)))))))))))
+      
 
       (complex-num-exp (real-exp imag-exp) (let ((a (eval-expression real-exp env))
                                                  (b (eval-expression imag-exp env)))
@@ -378,18 +379,6 @@
       (else
        (direct-target (eval-expression rand env))))))
 
-;==================================================== EVAL-BLOCK =========================================================
-
-(define eval-block-body
-  (lambda (body env)
-    (cases block-body body
-      (a-block-body (sents return-part)
-        (let ((final-env (execute-sentence-list sents env)))
-          (cases optional-return return-part
-            (a-return (return-exp)
-              (eval-expression return-exp final-env))
-            (no-return ()
-              "null")))))))
 
 ;===================================================== BOOLEANOS =========================================================
 
