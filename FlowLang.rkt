@@ -149,6 +149,10 @@
     (unary-primitive ("list?") is-list-prim)
     (unary-primitive ("head") head-prim)
     (unary-primitive ("tail") tail-prim)
+
+    ;; PRIMITIVAS PARA DICCIONARIOS
+
+    (unary-primitive ("diccionario?") is-dict-prim)
     
     ;; PRIMITIVAS UNARIAS
     (unary-primitive ("length") length-prim)
@@ -327,9 +331,9 @@
                 (map (lambda (elem) (eval-expression elem env))
                      elements))
       (dic-exp (identifiers expression)
-               (list
-                (cons 'keys identifiers)
-                (cons 'values expression)))
+  (let ((keys (map (lambda (id) (eval-expression id env)) identifiers))
+        (values (map (lambda (exp) (eval-expression exp env)) expression)))
+    (list 'dict keys values)))
 
       (create-list-exp (elem-exp lst-exp)
                        (let ((elem (eval-expression elem-exp env)))
@@ -480,7 +484,13 @@
       (empty-prim () (null? arg))
       (is-list-prim () (list? arg))
       (head-prim () (car arg))
-      (tail-prim () (cdr arg)))))
+      (tail-prim () (cdr arg))
+      (is-dict-prim()  (and (pair? arg)           
+                       (eq? (car arg) 'dict))) 
+      
+      )
+    )
+  )
 
 ;========================================= TIPOS DE DATOS REFERENCIA Y BLANCO ============================================
 
