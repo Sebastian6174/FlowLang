@@ -153,6 +153,7 @@
     ;; PRIMITIVAS PARA DICCIONARIOS
 
     (unary-primitive ("diccionario?") is-dict-prim)
+    (bin-primitive ("ref-diccionario") ref-dict-prim)
     
     ;; PRIMITIVAS UNARIAS
     (unary-primitive ("length") length-prim)
@@ -470,7 +471,20 @@
       (dif-prim () (if (eq? arg1 arg2) "false" "true"))
       (and-prim () (if (and (true-value? arg1) (true-value? arg2)) "true" "false"))
       (or-prim () (if (or (true-value? arg1) (true-value? arg2)) "true" "false"))
-      )))
+      (ref-dict-prim ()
+       (cdr arg1))
+      )
+    
+  )
+  )
+
+(define aux-ref-dict
+  (lambda (index keys vals)
+    (cond
+      ((null? keys) 'nulo)
+      ((equal? index (car keys)) (car vals))
+      (else (aux-ref-dict index (cdr keys) (cdr vals))))))
+        
 
 (define apply-prim-un
   (lambda (prim arg)
@@ -485,8 +499,9 @@
       (is-list-prim () (list? arg))
       (head-prim () (car arg))
       (tail-prim () (cdr arg))
-      (is-dict-prim()  (and (pair? arg)           
-                       (eq? (car arg) 'dict))) 
+      (is-dict-prim()  (car(cdr arg));(and (pair? arg)           
+                       ;(eq? (car arg) 'dict))
+                   ) 
       
       )
     )
