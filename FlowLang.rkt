@@ -20,11 +20,9 @@
     (number
      (digit (arbno digit) "." digit (arbno digit)) number)
     (text
-      ("\"" (arbno (not #\")) "\"")
-      string)
+     ("\"" (arbno (not #\")) "\"") string)
     (boolean
-     ((or "true" "false"))
-     string)
+     ((or "true" "false")) string)
     )
   )
 
@@ -33,7 +31,7 @@
 (define grammar
   '(
     ;; PROGRAMA
-    (program ((arbno sentence) "show" expression) a-program)
+    (program ((arbno sentence) "end") a-program)
 
     ;; SENTENCIAS
     (sentence (expression) expression-statement)
@@ -46,25 +44,25 @@
                func-decl-statement)
 
     (sentence ("const" (separated-list assignment ",") ";")
-              const-decl-statement)
+               const-decl-statement)
 
     (sentence ("print" "(" expression ")" ";")
                print-statement)
 
     ;; ESTRUCTURAS DE CONTROL
-    (sentence ("while" "("expression")"
+    (sentence ("while" expression
                   "{" (arbno sentence) "}")
-              while-statement)
+               while-statement)
 
     (sentence ("for" identifier "in" expression
                   "{" (arbno sentence) "}")
-              for-statement)
+               for-statement)
     
     (sentence ("if" expression
                   "{" (arbno sentence) "}"
-                "else"
+               "else"
                   "{" (arbno sentence) "}")
-                if-statement)
+               if-statement)
 
     (sentence ("switch" expression "{"
                   (arbno case-clause)
@@ -89,7 +87,6 @@
                 complex-num-exp)
 
     ;; LISTAS
-
     (expression ("empty")
                 empty-exp)
 
@@ -111,7 +108,23 @@
                 set-list-exp)
 
     ;; DICCIONARIOS
-    
+    (expression ("{" (separated-list expression ":" expression "," ) "}" )
+                dic-exp)
+
+    (expression ("create-dictionary" "(" (separated-list expression "," expression ",") ")")
+                dic-exp)
+
+    (expression ("ref-dictionary" "(" expression "," expression ")")
+                ref-dic-exp)
+
+    (expression ("set-dictionary" "(" expression "," expression "," expression ")")
+                set-dic-exp)
+
+    (expression ("keys" "(" expression ")")
+                get-keys-exp)
+
+    (expression ("values" "(" expression ")")
+                get-vals-exp)
 
     ;; PRIMITIVAS
     (expression ("(" expression bin-primitive expression ")")
@@ -148,6 +161,9 @@
     (unary-primitive ("list?") is-list-prim)
     (unary-primitive ("head") head-prim)
     (unary-primitive ("tail") tail-prim)
+
+    ;; PRIMITIVAS PARA DICCIONARIOS
+    (unary-primitive ("dictionary?") is-dict-prim)
     
     ;; PRIMITIVAS UNARIAS
     (unary-primitive ("length") length-prim)
@@ -161,9 +177,9 @@
 (define eval-program
   (lambda (pgm)
     (cases program pgm
-      (a-program (sentences final-exp)
-                 (let ((final-env (execute-sentence-list sentences (init-env))))
-                   (eval-expression final-exp final-env))))))
+      (a-program (sentences)
+                 (execute-sentence-list sentences (init-env))
+                 'program-terminated))))
 
 (define init-env
   (lambda () (empty-env)))
@@ -312,13 +328,11 @@
       (text-exp (txt) (format-text txt))
       (bool-exp (boolean) boolean)
 
-      
-
       (complex-num-exp (real-exp imag-exp) (let ((a (eval-expression real-exp env))
                                                  (b (eval-expression imag-exp env)))
                                              (if (and (number? a) (number? b))
                                                  (make-rectangular a b)
-                                                 (eopl:error 'eval-expression "Arguments for 'complex' must be numbers"))))
+                                                 (eopl:error 'eval-expression "Argumentos para 'complex' deben ser números"))))
 
       (empty-exp () empty)
 
@@ -332,7 +346,7 @@
                            (if (list? lst)
                                (cons elem lst)
                                (eopl:error 'eval-expression
-                                           "The second argument in 'create-list' must be a list. Recieved: ~s"
+                                           "El segundo argumento en 'create-list' debe ser una lista. Recibido: ~s"
                                            lst)))))
 
       (append-exp (args)
@@ -341,7 +355,7 @@
                     (if (and map list? evaluated-args)
                         (apply append evaluated-args)
                         (eopl:error 'eval-expression 
-                                    "All the arguments for 'append' must be lists."))))
+                                    "Los argumentos de 'append' deben ser listas."))))
 
       (ref-list-exp (lst-exp idx-exp)
         (let ((lst (eval-expression lst-exp env))
@@ -354,23 +368,60 @@
               "null")))
 
       (set-list-exp (lst-exp idx-exp val-exp)
-        (let ((lst (eval-expression lst-exp env))
-              (i (eval-expression idx-exp env))
-              (valor (eval-expression val-exp env)))
-          (if (and (list? lst)
-                   (integer? i)
-                   (>= i 0)
-                   (< i (length lst)))
-              (let loop ((n 0) (current-lst lst))
-                (cond
-                  ((null? current-lst) '())
-                  ((= n i)
-                   (cons valor (cdr current-lst)))
-                  (else
-                   (cons (car current-lst)
-                         (loop (+ n 1) (cdr current-lst))))))
-              (eopl:error 'eval-expression
-                          "Índice inválido ~s para set-list." i))))
+                    (let ((lst (eval-expression lst-exp env))
+                          (i (eval-expression idx-exp env))
+                          (valor (eval-expression val-exp env)))
+                      (if (and (list? lst)
+                               (integer? i)
+                               (>= i 0)
+                               (< i (length lst)))
+                          (list-replace-at lst i valor)
+                          (eopl:error 'eval-expression
+                                      "Índice inválido ~s para set-list." i))))
+
+      (dic-exp (identifiers expressions)
+               (let ((keys (map (lambda (id) (eval-expression id env)) identifiers))
+                     (values (map (lambda (exp) (eval-expression exp env)) expressions)))
+                 (list 'dict keys values)))
+      
+      (ref-dic-exp (dic-exp key-exp)
+                   (let ((dic (eval-expression dic-exp env))
+                         (key (eval-expression key-exp env)))
+                     (if (not (and (list? dic) (eq? (car dic) 'dict)))
+                         (eopl:error 'eval-expression "Intento de acceder a algo que no es un diccionario: ~s" dic)                   
+                         (let ((keys-list (cadr dic))  
+                               (vals-list (caddr dic)))      
+                           (let ((pos (list-find-position key keys-list)))                   
+                             (if (number? pos)
+                                 (list-ref vals-list pos)
+                                 "null"))))))
+
+      (set-dic-exp (dic-exp key-exp val-exp)
+                   (let ((dic (eval-expression dic-exp env))
+                         (key (eval-expression key-exp env))
+                         (new-val (eval-expression val-exp env)))
+                     (if (not (and (list? dic) (eq? (car dic) 'dict)))
+                         (eopl:error 'eval-expression "Intento de 'set' en algo que no es un diccionario: ~s" dic)
+                         (let ((keys-list (cadr dic))
+                               (vals-list (caddr dic)))
+                           (let ((pos (list-find-position key keys-list)))
+                             (if (not (number? pos))
+                                 (eopl:error 'eval-expression "Clave no encontrada en el diccionario: ~s" key)
+                                 (let ((new-vals-list (list-replace-at vals-list pos new-val)))
+                                   (list 'dict keys-list new-vals-list)
+                                   )))))))
+
+      (get-keys-exp (dic-exp)
+                    (let ((dic (eval-expression dic-exp env)))
+                      (if (not (and (list? dic) (eq? (car dic) 'dict)))
+                         (eopl:error 'eval-expression "Intento de 'set' en algo que no es un diccionario: ~s" dic)
+                         (cadr dic))))
+
+      (get-vals-exp (dic-exp)
+                    (let ((dic (eval-expression dic-exp env)))
+                      (if (not (and (list? dic) (eq? (car dic) 'dict)))
+                         (eopl:error 'eval-expression "Intento de 'set' en algo que no es un diccionario: ~s" dic)
+                         (caddr dic))))
 
       (bin-primitive-exp (rand1 op rand2)
                          (let ((arg1 (eval-expression rand1 env))
@@ -417,12 +468,13 @@
   (lambda (rand env)
     (cases expression rand
       (var-exp (id)
-               (indirect-target
-                (let ((ref (apply-env-ref env id)))
-                  (cases target (primitive-deref ref)
-                    (direct-target (expval) ref)
-                    (indirect-target (ref1) ref1)
-                    (const-target (expval) ref)))))
+        (let* (
+               (ref (apply-env-ref env id))
+               (val (deref ref))
+              )
+          (if (list? val)
+              (indirect-target ref)
+              (direct-target val))))
       (else
        (direct-target (eval-expression rand env))))))
 
@@ -475,7 +527,8 @@
       (empty-prim () (null? arg))
       (is-list-prim () (list? arg))
       (head-prim () (car arg))
-      (tail-prim () (cdr arg)))))
+      (tail-prim () (cdr arg))
+      (is-dict-prim() (eq? (car arg) 'dict)))))
 
 ;========================================= TIPOS DE DATOS REFERENCIA Y BLANCO ============================================
 
@@ -601,7 +654,7 @@
 
 (define list-find-position
   (lambda (sym los)
-    (list-index (lambda (sym1) (eqv? sym1 sym)) los)))
+    (list-index (lambda (sym1) (equal? sym1 sym)) los)))
 
 (define list-index
   (lambda (pred ls)
@@ -612,6 +665,17 @@
               (if (number? list-index-r)
                 (+ list-index-r 1)
                 #f))))))
+
+(define list-replace-at
+  (lambda (lst index new-val)
+    (let loop ((n 0) (current-lst lst))
+      (cond
+        ((null? current-lst) '())
+        ((= n index)
+         (cons new-val (cdr current-lst)))
+        (else
+         (cons (car current-lst)
+               (loop (+ n 1) (cdr current-lst))))))))
 
 (define iota
   (lambda (end)
