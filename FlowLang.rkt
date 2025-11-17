@@ -12,7 +12,7 @@
     (comment
      ("//" (arbno (not #\newline))) skip)
     (identifier
-     (letter (arbno (or letter digit "?"))) symbol)
+     (letter (arbno (or letter digit "?" "_"))) symbol)
     (number
      (digit (arbno digit)) number)
     (number
@@ -126,7 +126,7 @@
                 get-vals-exp)
 
     ;; PROTOTIPOS
-    (sentence ("prototype" identifier "=" expression)
+    (sentence ("prototype" identifier "=" expression ";")
               prototype-decl-statement)
 
     (sentence ("update" identifier "." identifier "=" expression ";")
@@ -479,18 +479,18 @@
                    (let ((dic (eval-expression dic-exp env))
                          (key (eval-expression key-exp env))
                          (new-val (eval-expression val-exp env)))
-    
-                     (cases dict-val dic
-                       (a-dict (keys-list vals-list proto)
-                               (let ((pos (list-find-position key keys-list)))
-                                 (if (not (number? pos))
-                                     (eopl:error 'eval-expression "Clave no encontrada en el diccionario: ~s" key)
-                                     (let ((new-vals-list (list-replace-at vals-list pos new-val)))
-                                       (a-dict keys-list new-vals-list proto)
-                                       ))))
-                       (else
-                        (eopl:error 'eval-expression "Intento de 'set' en algo que no es un diccionario: ~s" dic))
-                       )))
+                     (if (not (dict-val? dic))
+                         (eopl:error 'eval-expression "Intento de 'set-dictionary' en algo que no es un diccionario: ~s" dic)
+                         (cases dict-val dic
+                           (a-dict (keys-list vals-list proto)
+                                   (let ((pos (list-find-position key keys-list)))
+                                     (if (number? pos)
+                                         (let ((new-vals-list (list-replace-at vals-list pos new-val)))
+                                           (a-dict keys-list new-vals-list proto))
+                                         (let ((new-keys-list (cons key keys-list))
+                                               (new-vals-list (cons new-val vals-list)))
+                                           (a-dict new-keys-list new-vals-list proto))
+                                         )))))))
 
       (get-keys-exp (dic-exp)
                     (let ((dic (eval-expression dic-exp env)))
@@ -518,11 +518,10 @@
                        (let* (
                               (obj (eval-expression obj-exp env))
                               (proc (lookup-property obj id))
-                              (args (map (lambda (exp) (eval-expression exp env))
-                                         args-exps))
+                              (args (eval-rands args-exps env))
                               )
-                         (if (not (procval? proc)) 
-                             (eopl:error 'eval-expression 
+                         (if (not (procval? proc))
+                             (eopl:error 'eval-expression
                                          "Intento de llamar a un no-procedimiento: ~s" id)
                              (apply-procedure proc args obj)
                              )))
