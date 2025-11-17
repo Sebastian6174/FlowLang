@@ -219,84 +219,84 @@
     (cases sentence sent
 
       (vars-decl-statement (assignments)
-        (let ((ids (map
-                    (lambda (a)
-                      (cases assignment a (an-assignment (id exp) id)))
-                    assignments))
-              (vals (map
-                     (lambda (a)
-                       (cases assignment a (an-assignment (id exp)
-                                                          (eval-expression exp env))))
-                     assignments)))
-          (let ((wrapped-vals (map
-                               (lambda (v) (direct-target v))
-                               vals)))
-            (extend-env ids wrapped-vals env))))
-
+                           (let ((ids (map
+                                       (lambda (a)
+                                         (cases assignment a (an-assignment (id exp) id)))
+                                       assignments))
+                                 (vals (map
+                                        (lambda (a)
+                                          (cases assignment a (an-assignment (id exp)
+                                                                             (eval-expression exp env))))
+                                        assignments)))
+                             (let ((wrapped-vals (map
+                                                  (lambda (v) (direct-target v))
+                                                  vals)))
+                               (extend-env ids wrapped-vals env))))
+      
       (const-decl-statement (assignments)
-        (let ((ids (map
-                     (lambda (a)
-                       (cases assignment a (an-assignment (id exp) id)))
-                     assignments))
-              (vals (map
-                      (lambda (a)
-                        (cases assignment a (an-assignment (id exp)
-                          (eval-expression exp env))))
-                      assignments)))
-          (let ((wrapped-vals (map
-                               (lambda (v) (const-target v))
-                               vals)))
-          (extend-env ids wrapped-vals env))))
+                            (let ((ids (map
+                                        (lambda (a)
+                                          (cases assignment a (an-assignment (id exp) id)))
+                                        assignments))
+                                  (vals (map
+                                         (lambda (a)
+                                           (cases assignment a (an-assignment (id exp)
+                                                                              (eval-expression exp env))))
+                                         assignments)))
+                              (let ((wrapped-vals (map
+                                                   (lambda (v) (const-target v))
+                                                   vals)))
+                                (extend-env ids wrapped-vals env))))
 
       (assignment-statement(id exp)
-        (let ((new-val (eval-expression exp env)))
-          (let ((ref (apply-env-ref env id)))
-            (setref! ref new-val)))
-        env)
+                           (let ((new-val (eval-expression exp env)))
+                             (let ((ref (apply-env-ref env id)))
+                               (setref! ref new-val)))
+                           env)
 
       (if-statement (test-exp then-sents else-sents)
-        (let ((test-val (eval-expression test-exp env)))
-          (if (true-value? test-val)
-              (execute-sentence-list then-sents env)
-              (execute-sentence-list else-sents env)
-              )
-          ))
+                    (let ((test-val (eval-expression test-exp env)))
+                      (if (true-value? test-val)
+                          (execute-sentence-list then-sents env)
+                          (execute-sentence-list else-sents env)
+                          )
+                      ))
 
       (for-statement (id list-exp body-sents)
-        (let ((list-val (eval-expression list-exp env)))
-          (if (not (list? list-val))
-              (eopl:error 'execute-sentence 
-                          "La expresión en un 'for' debe ser una lista. Se recibió: ~s"
-                          list-val)
-                (for-loop id list-val body-sents env)
-                )))
+                     (let ((list-val (eval-expression list-exp env)))
+                       (if (not (list? list-val))
+                           (eopl:error 'execute-sentence 
+                                       "La expresión en un 'for' debe ser una lista. Se recibió: ~s"
+                                       list-val)
+                           (for-loop id list-val body-sents env)
+                           )))
 
       (while-statement (condition-exp sents)
-          (while-loop condition-exp sents env))
+                       (while-loop condition-exp sents env))
 
       (switch-statement (switch-val-exp case-clauses default-sents)
-        (let ((switch-val (eval-expression switch-val-exp env)))
-          (find-winner case-clauses default-sents switch-val env)))
+                        (let ((switch-val (eval-expression switch-val-exp env)))
+                          (find-winner case-clauses default-sents switch-val env)))
 
       (func-decl-statement (func-name param-ids body-sents return-exp)
-        (let ((vec (make-vector 1))) 
-          (let ((new-env (extended-env-record (list func-name) vec env)))
-            (vector-set! vec 0
-                         (direct-target (closure param-ids body-sents return-exp new-env)))
-            new-env)))
+                           (let ((vec (make-vector 1))) 
+                             (let ((new-env (extended-env-record (list func-name) vec env)))
+                               (vector-set! vec 0
+                                            (direct-target (closure param-ids body-sents return-exp new-env)))
+                               new-env)))
 
       (prototype-decl-statement (id exp)
-        (let ((proto-val (eval-expression exp env)))
-           (cases dict-val proto-val
-             (a-dict (keys vals proto)
-               (let ((wrapped-val (direct-target proto-val)))
-                                  (extend-env (list id) (list wrapped-val) env)))
-             (else
-                (eopl:error 'execute-sentence
-                 "La sentencia 'prototipo' debe usarse con un objeto {}. Se recibió: ~s"
-                 proto-val)))))
+                                (let ((proto-val (eval-expression exp env)))
+                                  (cases dict-val proto-val
+                                    (a-dict (keys vals proto)
+                                            (let ((wrapped-val (direct-target proto-val)))
+                                              (extend-env (list id) (list wrapped-val) env)))
+                                    (else
+                                     (eopl:error 'execute-sentence
+                                                 "La sentencia 'prototipo' debe usarse con un objeto {}. Se recibió: ~s"
+                                                 proto-val)))))
       
-      (property-set-statement (obj-id id val-exp)  
+      (property-set-statement (obj-id id val-exp)
                               (let* (
                                      (obj-ref (apply-env-ref env obj-id))
                                      (obj (deref obj-ref))
@@ -320,21 +320,20 @@
                                                             (a-dict new-keys new-vals proto-link)))))
                                                 (setref! obj-ref new-obj) 
                                                 ))))
-                                env
-                                ))
+                                env))
       
       (print-statement (exp)
-        (let ((val (eval-expression exp env)))
-          (begin
-            (display val)
-            (newline)
-            )
-          )
-        env)
+                       (let ((val (eval-expression exp env)))
+                         (begin
+                           (display val)
+                           (newline)
+                           )
+                         )
+                       env)
 
       (expression-statement (exp)
-        (eval-expression exp env) 
-        env))))
+                            (eval-expression exp env) 
+                            env))))
 
 ;=============================================== AUXILIAR PARA SWITCH ====================================================
 
@@ -406,11 +405,12 @@
       (text-exp (txt) (format-text txt))
       (bool-exp (boolean) boolean)
 
-      (complex-num-exp (real-exp imag-exp) (let ((a (eval-expression real-exp env))
-                                                 (b (eval-expression imag-exp env)))
-                                             (if (and (number? a) (number? b))
-                                                 (make-rectangular a b)
-                                                 (eopl:error 'eval-expression "Argumentos para 'complex' deben ser números"))))
+      (complex-num-exp (real-exp imag-exp)
+                       (let ((a (eval-expression real-exp env))
+                             (b (eval-expression imag-exp env)))
+                         (if (and (number? a) (number? b))
+                             (make-rectangular a b)
+                             (eopl:error 'eval-expression "Argumentos para 'complex' deben ser números"))))
 
       (empty-exp () empty)
 
@@ -515,33 +515,33 @@
                              (lookup-property obj id)))
 
       (method-call-exp (obj-exp id args-exps)
-        (let* (
-               (obj (eval-expression obj-exp env))
-               (proc (lookup-property obj id))
-               (args (map (lambda (exp) (eval-expression exp env))
-                          args-exps))
-              )
-          (if (not (procval? proc)) 
-              (eopl:error 'eval-expression 
-                          "Intento de llamar a un no-procedimiento: ~s" id)
-              (apply-procedure proc args obj)
-              )))
+                       (let* (
+                              (obj (eval-expression obj-exp env))
+                              (proc (lookup-property obj id))
+                              (args (map (lambda (exp) (eval-expression exp env))
+                                         args-exps))
+                              )
+                         (if (not (procval? proc)) 
+                             (eopl:error 'eval-expression 
+                                         "Intento de llamar a un no-procedimiento: ~s" id)
+                             (apply-procedure proc args obj)
+                             )))
 
       (clone-exp (proto-exp)
-        (let ((proto-obj (eval-expression proto-exp env)))
-          (if (not (dict-val? proto-obj))
-              (eopl:error 'eval-expression "Solo se pueden clonar diccionarios: ~s" proto-obj)
-              (a-dict
-               '()           
-               '()            
-               proto-obj     
-               ))))
+                 (let ((proto-obj (eval-expression proto-exp env)))
+                   (if (not (dict-val? proto-obj))
+                       (eopl:error 'eval-expression "Solo se pueden clonar diccionarios: ~s" proto-obj)
+                       (a-dict
+                        '()           
+                        '()            
+                        proto-obj     
+                        ))))
 
       (this-exp ()
-        (apply-env env 'this))
+                (apply-env env 'this))
 
       (anon-func-exp (ids sents return-exp)
-        (closure ids sents return-exp env))
+                     (closure ids sents return-exp env))
 
       (bin-primitive-exp (rand1 op rand2)
                          (let ((arg1 (eval-expression rand1 env))
@@ -640,10 +640,10 @@
       (concat-prim () (string-append arg1 arg2))
       (greater-prim () (if (> arg1 arg2) "true" "false"))
       (less-prim () (if (< arg1 arg2) "true" "false"))
-      (eq-prim () (if (eq? arg1 arg2) "true" "false"))
-      (greater-eq-prim () (if (or (> arg1 arg2) (eq? arg1 arg2)) "true" "false"))
-      (less-eq-prim () (if (or (< arg1 arg2) (eq? arg1 arg2)) "true" "false"))
-      (dif-prim () (if (eq? arg1 arg2) "false" "true"))
+      (eq-prim () (if (equal? arg1 arg2) "true" "false"))
+      (greater-eq-prim () (if (or (> arg1 arg2) (equal? arg1 arg2)) "true" "false"))
+      (less-eq-prim () (if (or (< arg1 arg2) (equal? arg1 arg2)) "true" "false"))
+      (dif-prim () (if (equal? arg1 arg2) "false" "true"))
       (and-prim () (if (and (true-value? arg1) (true-value? arg2)) "true" "false"))
       (or-prim () (if (or (true-value? arg1) (true-value? arg2)) "true" "false"))
       )))
