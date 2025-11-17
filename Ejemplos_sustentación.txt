@@ -1,0 +1,89 @@
+Ejercicio 3
+let x=1;
+print (x);
+set x= (x+1);
+print (x);
+end
+Resultados:
+1
+2
+
+Ejercicio 4
+E.j 1
+const a = 5;
+print (a);
+end
+E.j 2
+const  b = 10;
+set b =2;
+print (b);
+end
+Ejercicio 5
+// ===========================================
+// == Primitivas aritméticas con ENTEROS
+// ===========================================
+print( (10 + 3) );     // Suma: 13
+print( (10 - 3) );     // Resta: 7
+print( (10 * 3) );     // Multiplicación: 30
+print( (10 % 3) );     // Módulo: 1
+print( (10 / 4) );     // División: 2.5 (tu intérprete usa / de Racket, que da flotantes)
+print( add1(10) );     // add1: 11
+print( sub1(10) );     // sub1: 9
+// ===========================================
+// == Primitivas aritméticas con FLOTANTES
+// ===========================================
+print( (10.5 + 3.2) ); // Suma: 13.7
+print( (10.5 - 3.2) ); // Resta: 7.3
+print( (10.5 * 2.0) ); // Multiplicación: 21.0
+//print( (10.8 % 3.2) ); // Módulo: 1.2 (10.8 - 3 * 3.2)
+print( (10.5 / 3.0) ); // División: 3.5
+print( add1(10.5) );   // add1: 11.5
+print( sub1(10.5) );   // sub1: 9.5
+// ===========================================
+// == Primitivas aritméticas con COMPLEJOS
+// ===========================================
+// Sintaxis: complex(real, imag)
+// Suma: (5+2i) + (3+4i) = 8+6i
+print( (complex(5, 2) + complex(3, 4)) );
+// Resta: (5+2i) - (3+4i) = 2-2i
+print( (complex(5, 2) - complex(3, 4)) );
+// Multiplicación: (5+2i) * (3+4i) = (15 - 8) + (20 + 6)i = 7+26i
+print( (complex(5, 2) * complex(3, 4)) );
+// División: (5+2i) / (3+4i) = ( (15+8) + (6-20)i ) / (9+16) = (23 - 14i) / 25
+// Resultado: 0.92-0.56i
+print( (complex(5, 2) / complex(3, 4)) );
+// Fin del programa
+end
+
+Ejercicio 6
+// ===========================================
+// == Primitivas relacionales con ENTEROS
+// ===========================================
+print( (10 > 5) );     // Mayor que: true
+print( (10 < 5) );     // Menor que: false
+print( (10 >= 10) );   // Mayor o igual que: true
+print( (10 <= 5) );    // Menor o igual que: false
+print( (5 == 5) );     // Igual: true
+print( (10 != 5) );    // Diferente: true
+
+// ===========================================
+// == Primitivas relacionales con FLOTANTES
+// ===========================================
+print( (10.5 > 5.1) ); // Mayor que: true
+print( (10.5 < 5.1) ); // Menor que: false
+print( (10.5 >= 10.5) );// Mayor o igual que: true
+print( (10.5 <= 5.1) );// Menor o igual que: false
+print( (5.1 == 5.1) ); // Igual: true
+print( (10.5 != 5.1) );// Diferente: true
+
+// ===========================================
+// == Primitivas lógicas con BOOLEANOS
+// ===========================================
+// (Tu intérprete usa los strings "true" y "false" como valores booleanos)
+
+print( (true and false) ); // And: false
+print( (true or false) );  // Or: true
+print( not(true) );      // Not: false (o #f, dependiendo de tu implementación exacta de 'not')
+
+// Fin del programa
+end

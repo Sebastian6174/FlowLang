@@ -69,7 +69,6 @@
                   "default" "{" (arbno sentence) "}"
                 "}")
                 switch-statement)
-    ;;Prototipos
 
     (case-clause ("case" expression"{" (arbno sentence) "}")
                  a-case-clause)
@@ -126,7 +125,9 @@
 
     (expression ("values" "(" expression ")")
                 get-vals-exp)
+    ;;Prototipos
 
+    (expression ("prototipo" "(" text "=" "{" (separated-list expression ":" expression "," ) "}")
 
     ;; PRIMITIVAS
     (expression ("(" expression bin-primitive expression ")")
@@ -276,9 +277,7 @@
 
       (expression-statement (exp)
         (eval-expression exp env) 
-        env)
-
-      )))
+        env))))
 
 ;=============================================== AUXILIAR PARA SWITCH ====================================================
 
@@ -382,8 +381,7 @@
                           (list-replace-at lst i valor)
                           (eopl:error 'eval-expression
                                       "Índice inválido ~s para set-list." i))))
-     
-      
+
       (dic-exp (identifiers expressions)
                (let ((keys (map (lambda (id) (eval-expression id env)) identifiers))
                      (values (map (lambda (exp) (eval-expression exp env)) expressions)))
