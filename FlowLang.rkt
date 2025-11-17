@@ -488,9 +488,9 @@
 
 (define true-value?
   (lambda (v)
-    (not (or (eqv? v "false")
-            (eqv? v 0)
-            (eqv? v "null")))))
+    (not (or (equal? v "false")
+            (equal? v 0)
+            (equal? v "null")))))
 
 ;================================================= STRINGS Y LISTAS ======================================================
 
@@ -528,7 +528,7 @@
                           (length arg)))
       (add1-prim () (+ arg 1))
       (sub1-prim () (- arg 1))
-      (neg-prim () (not arg))
+      (neg-prim () (auxNot arg))
       (empty-prim () (null? arg))
       (is-list-prim () (list? arg))
       (head-prim () (car arg))
