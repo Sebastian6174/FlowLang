@@ -142,7 +142,7 @@
                   "{" (arbno sentence) "return" expression ";" "}")
                 anon-func-exp)
 
-    (expression ("clone" "(" expression ")" ";")
+    (expression ("clone" "(" expression ")")
             clone-exp)
 
     (expression ("this")
@@ -605,7 +605,7 @@
                (ref (apply-env-ref env id))
                (val (deref ref))
               )
-          (if (list? val)
+          (if (or (list? val) (dict-val? val))
               (indirect-target ref)
               (direct-target val))))
       (else
@@ -657,7 +657,7 @@
       (add1-prim () (+ arg 1))
       (sub1-prim () (- arg 1))
       (neg-prim () (if (not (true-value? arg)) "true" "false"))
-      (empty-prim () (null? arg))
+      (empty-prim () (if (null? arg) "true" "false"))
       (is-list-prim () (list? arg))
       (head-prim () (car arg))
       (tail-prim () (cdr arg))
