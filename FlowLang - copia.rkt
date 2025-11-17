@@ -1,6 +1,6 @@
-#lang racket
-(require eopl)
-(require racket/hash)
+#lang eopl
+; require racket/file
+;importar file->string función
 
 ;================================================== SCANNER Y GRAMÁTICA ==================================================
 
@@ -129,13 +129,13 @@
     (sentence ("prototype" identifier "=" expression ";")
               prototype-decl-statement)
 
-    (expression ("set-property" "(" expression "," expression "," expression ")" ";")
-            set-property-exp)
-    
+    (sentence ("update" identifier "." identifier "=" expression ";")
+              property-set-statement)
+
     (expression ("get" expression "." identifier)
                 property-access-exp)
 
-    (expression ("method" expression "." identifier "(" (separated-list expression ",") ")" ";")
+    (expression ("method" expression "." identifier "(" (separated-list expression ",") ")")
                 method-call-exp)
 
     (expression ("lambda" "(" (separated-list identifier ",") ")"
@@ -287,21 +287,40 @@
 
       (prototype-decl-statement (id exp)
                                 (let ((proto-val (eval-expression exp env)))
-    
-                                  (if (not (dict-val? proto-val))
-                                      (eopl:error 'execute-sentence
-                                                  "La sentencia 'prototipo' debe usarse con un objeto {}. Se recibió: ~s"
-                                                  proto-val)
-                                      
-                                      (cases dict-val proto-val
-                                        (a-dict (fields-hash proto-link)
-                                                (let ((wrapped-val (direct-target proto-val)))
-                                                  (extend-env (list id) (list wrapped-val) env)))
-                                        (else
-                                         (eopl:error 'execute-sentence
-                                                     "Error interno del prototipo, se esperaba a-dict: ~s"
-                                                     proto-val))
-                                        ))))
+                                  (cases dict-val proto-val
+                                    (a-dict (keys vals proto)
+                                            (let ((wrapped-val (direct-target proto-val)))
+                                              (extend-env (list id) (list wrapped-val) env)))
+                                    (else
+                                     (eopl:error 'execute-sentence
+                                                 "La sentencia 'prototipo' debe usarse con un objeto {}. Se recibió: ~s"
+                                                 proto-val)))))
+      
+      (property-set-statement (obj-id id val-exp)
+                              (let* (
+                                     (obj-ref (apply-env-ref env obj-id))
+                                     (obj (deref obj-ref))
+                                     (key id) 
+                                     (new-val (eval-expression val-exp env))
+                                     )
+                                (if (not (dict-val? obj))
+                                    (eopl:error 'execute-sentence 
+                                                "Intento de 'set' en algo que no es un objeto: ~s" obj)
+                                    (cases dict-val obj
+                                      (a-dict (keys-list vals-list proto-link)
+                                              (let* (
+                                                     (key-as-string (symbol->string key))
+                                                     (pos (list-find-position key-as-string keys-list))
+                                                     (new-obj 
+                                                      (if (number? pos)
+                                                          (let ((new-vals (list-replace-at vals-list pos new-val)))
+                                                            (a-dict keys-list new-vals proto-link))
+                                                          (let ((new-keys (cons key-as-string keys-list))
+                                                                (new-vals (cons new-val vals-list)))
+                                                            (a-dict new-keys new-vals proto-link)))))
+                                                (setref! obj-ref new-obj) 
+                                                ))))
+                                env))
       
       (print-statement (exp)
                        (let ((val (eval-expression exp env)))
@@ -362,20 +381,19 @@
 
 (define lookup-property
   (lambda (obj key)
-    (if (not (dict-val? obj))
-        (if (equal? obj "null")
-            "null"
-            (eopl:error "El objeto no es un diccionario 'dict': " obj))
-        
-        (cases dict-val obj
-          (a-dict (fields-hash proto-link)
-            (let ((key-as-string (symbol->string key)))
-              
-              (let ((val (hash-ref fields-hash key-as-string #f)))
-                (if val
-                    val 
-                    (lookup-property proto-link key) 
-                    ))))))))
+    (cases dict-val obj
+      (a-dict (keys-list vals-list proto-link)
+        (let ((key-as-string (symbol->string key)))
+          (let ((pos (list-find-position key-as-string keys-list)))
+            (if (number? pos)
+                (list-ref vals-list pos)
+                (if (equal? proto-link "null")
+                    "null"
+                    (lookup-property proto-link key))
+                ))))
+      (else 
+       (eopl:error "El objeto no es un diccionario 'dict': " obj))
+      )))
 
 ;============================================== EVALUADOR DE EXPRESIONES =================================================
 
@@ -394,86 +412,68 @@
                              (make-rectangular a b)
                              (eopl:error 'eval-expression "Argumentos para 'complex' deben ser números"))))
 
-      (empty-exp () (a-list (vector)))
+      (empty-exp () empty)
 
       (list-exp (elements)
-                (let* ((vals (map (lambda (elem) (eval-expression elem env)) elements))
-                       (vec (list->vector vals)))
-                  (a-list vec)))
+                (map (lambda (elem) (eval-expression elem env))
+                     elements))
 
       (create-list-exp (elem-exp lst-exp)
-                       (let ((elem (eval-expression elem-exp env))
-                             (lst (eval-expression lst-exp env)))
-                         (if (not (mut-list? lst))
-                             (eopl:error 'eval-expression
-                                         "El segundo argumento en 'create-list' debe ser una lista. Recibido: ~s"
-                                         lst)
-                             (cases mut-list lst
-                               (a-list (vec)
-                                       (let ((new-vec (list->vector (cons elem (vector->list vec)))))
-                                         (a-list new-vec)
-                                         ))))))
+                       (let ((elem (eval-expression elem-exp env)))
+                         (let ((lst (eval-expression lst-exp env)))
+                           (if (list? lst)
+                               (cons elem lst)
+                               (eopl:error 'eval-expression
+                                           "El segundo argumento en 'create-list' debe ser una lista. Recibido: ~s"
+                                           lst)))))
 
       (append-exp (args)
                   (let ((evaluated-args (map (lambda (arg-exp) (eval-expression arg-exp env))
                                              args)))
-                    (if (not (andmap mut-list? evaluated-args))
-                        (eopl:error 'eval-expression
-                                    "Todos los argumentos de 'append' deben ser listas. Se recibió: ~s"
-                                    evaluated-args)
-                        (let ((lists-to-append (map
-                                                (lambda (m-list)
-                                                  (cases mut-list m-list
-                                                    (a-list (vec) (vector->list vec))))
-                                                evaluated-args)))
-                          (let ((appended-list (apply append lists-to-append)))
-                            (a-list (list->vector appended-list))
-                            )))))
-      
+                    (if (and map list? evaluated-args)
+                        (apply append evaluated-args)
+                        (eopl:error 'eval-expression 
+                                    "Los argumentos de 'append' deben ser listas."))))
+
       (ref-list-exp (lst-exp idx-exp)
                     (let ((lst (eval-expression lst-exp env))
                           (i (eval-expression idx-exp env)))
-                      (if (not (mut-list? lst))
-                          (eopl:error 'eval-expression "ref-list: no es una lista ~s" lst)
-                          (cases mut-list lst
-                            (a-list (vec)
-                                    (if (and (integer? i) (>= i 0) (< i (vector-length vec)))
-                                        (vector-ref vec i)
-                                        "null"))))))
+                      (if (and (list? lst)
+                               (integer? i)
+                               (>= i 0)
+                               (< i (length lst)))
+                          (list-ref lst i)
+                          "null")))
 
       (set-list-exp (lst-exp idx-exp val-exp)
                     (let ((lst (eval-expression lst-exp env))
                           (i (eval-expression idx-exp env))
                           (valor (eval-expression val-exp env)))
-                      (if (not (mut-list? lst))
-                          (eopl:error 'eval-expression "set-list: no es una lista ~s" lst)
-                          (cases mut-list lst
-                            (a-list (vec)
-                                    (if (and (integer? i) (>= i 0) (< i (vector-length vec)))
-                                        (begin
-                                          (vector-set! vec i valor)
-                                          lst) 
-                                        (eopl:error 'eval-expression "Índice inválido ~s para set-list." i)))))))
+                      (if (and (list? lst)
+                               (integer? i)
+                               (>= i 0)
+                               (< i (length lst)))
+                          (list-replace-at lst i valor)
+                          (eopl:error 'eval-expression
+                                      "Índice inválido ~s para set-list." i))))
 
-      (dic-exp (key-exps val-exps)
-               (let ((keys (map (lambda (k) (eval-expression k env)) key-exps))
-                     (vals (map (lambda (v) (eval-expression v env)) val-exps))
-                     (fields-hash (make-hash)))
-                 (for-each
-                  (lambda (k v) (hash-set! fields-hash k v))
-                  keys vals)
-                 (a-dict fields-hash "null")))
+      (dic-exp (identifiers expressions)
+               (let ((keys (map (lambda (id) (eval-expression id env)) identifiers))
+                     (vals (map (lambda (exp) (eval-expression exp env)) expressions)))
+                 (a-dict keys vals "null")))
       
       (ref-dic-exp (dic-exp key-exp)
                    (let ((dic (eval-expression dic-exp env))
                          (key (eval-expression key-exp env)))
-                     (if (not (dict-val? dic))
-                         (eopl:error 'eval-expression "Intento de 'ref-dictionary' en algo que no es un diccionario: ~s" dic)
-                         
-                         (cases dict-val dic
-                           (a-dict (fields-hash proto)
-                                   (hash-ref fields-hash key "null")
-                                   )))))
+                     (cases dict-val dic
+                       (a-dict (keys-list vals-list proto)
+                               (let ((pos (list-find-position key keys-list)))
+                                 (if (number? pos)
+                                     (list-ref vals-list pos)
+                                     "null")))
+                       (else
+                        (eopl:error 'eval-expression "Intento de acceder a algo que no es un diccionario: ~s" dic))
+                       )))
       
       (set-dic-exp (dic-exp key-exp val-exp)
                    (let ((dic (eval-expression dic-exp env))
@@ -482,46 +482,37 @@
                      (if (not (dict-val? dic))
                          (eopl:error 'eval-expression "Intento de 'set-dictionary' en algo que no es un diccionario: ~s" dic)
                          (cases dict-val dic
-                           (a-dict (fields-hash proto)
-                                   (hash-set! fields-hash key new-val)
-                                   dic 
-                                   )))))
+                           (a-dict (keys-list vals-list proto)
+                                   (let ((pos (list-find-position key keys-list)))
+                                     (if (number? pos)
+                                         (let ((new-vals-list (list-replace-at vals-list pos new-val)))
+                                           (a-dict keys-list new-vals-list proto))
+                                         (let ((new-keys-list (cons key keys-list))
+                                               (new-vals-list (cons new-val vals-list)))
+                                           (a-dict new-keys-list new-vals-list proto))
+                                         )))))))
 
       (get-keys-exp (dic-exp)
                     (let ((dic (eval-expression dic-exp env)))
-                      (if (not (dict-val? dic))
-                          (eopl:error 'eval-expression "Intento de 'get-keys' en algo que no es un diccionario: ~s" dic)
-                          (cases dict-val dic
-                            (a-dict (fields-hash proto)
-                                    (let ((keys-as-racket-list (hash-keys fields-hash)))
-                                      (a-list (list->vector keys-as-racket-list))
-                                      ))))))
+                      (cases dict-val dic
+                        (a-dict (keys vals proto)
+                                keys)
+                        (else
+                         (eopl:error 'eval-expression "Intento de 'get-keys' en algo que no es un diccionario: ~s" dic))
+                        )))
 
       (get-vals-exp (dic-exp)
                     (let ((dic (eval-expression dic-exp env)))
-                      (if (not (dict-val? dic))
-                          (eopl:error 'eval-expression "Intento de 'get-vals' en algo que no es un diccionario: ~s" dic)
-                          (cases dict-val dic
-                            (a-dict (fields-hash proto)
-                                    (let ((vals-as-racket-list (hash-values fields-hash)))
-                                      (a-list (list->vector vals-as-racket-list))
-                                      ))))))
+                      (cases dict-val dic
+                        (a-dict (keys vals proto)
+                                vals)
+                        (else
+                         (eopl:error 'eval-expression "Intento de 'get-vals' en algo que no es un diccionario: ~s" dic))
+                        )))
 
       (property-access-exp (obj-exp id)
                            (let ((obj (eval-expression obj-exp env)))
                              (lookup-property obj id)))
-
-      (set-property-exp (obj-exp key-exp val-exp)
-                        (let ((obj (eval-expression obj-exp env))
-                              (key (eval-expression key-exp env))
-                              (new-val (eval-expression val-exp env)))
-                          (if (not (dict-val? obj))
-                              (eopl:error 'eval-expression "Intento de 'set-property!' en algo que no es un diccionario: ~s" obj)
-                              (cases dict-val obj
-                                (a-dict (fields-hash proto)
-                                        (hash-set! fields-hash key new-val)
-                                        obj)
-                                ))))
 
       (method-call-exp (obj-exp id args-exps)
                        (let* (
@@ -540,8 +531,9 @@
                    (if (not (dict-val? proto-obj))
                        (eopl:error 'eval-expression "Solo se pueden clonar diccionarios: ~s" proto-obj)
                        (a-dict
-                        (make-hash) 
-                        proto-obj   
+                        '()           
+                        '()            
+                        proto-obj     
                         ))))
 
       (this-exp ()
@@ -593,15 +585,10 @@
 
 (define-datatype dict-val dict-val?
   (a-dict
-   (fields hash?)      
-   (proto expval?))     
+   (keys (list-of string?)) 
+   (vals (list-of expval?))
+   (proto expval?))
   )
-
-;===================================================== LISTAS ============================================================
-
-(define-datatype mut-list mut-list?
-  (a-list
-   (elements vector?)))
 
 ;=================================================== EVAL-RANDS ==========================================================
 
@@ -617,7 +604,7 @@
                (ref (apply-env-ref env id))
                (val (deref ref))
               )
-          (if (or (mut-list? val) (dict-val? val))
+          (if (or (list? val) (dict-val? val))
               (indirect-target ref)
               (direct-target val))))
       (else
@@ -663,46 +650,17 @@
 (define apply-prim-un
   (lambda (prim arg)
     (cases unary-primitive prim
-      (length-prim ()
-        (cond
-          ((string? arg) (- (string-length arg) 2))
-          ((mut-list? arg) (cases mut-list arg (a-list (vec) (vector-length vec))))
-          (else (eopl:error 'length "No se puede aplicar 'length' a" arg))))
-          
+      (length-prim () (if (string? arg)
+                          (- (string-length arg) 2)
+                          (length arg)))
       (add1-prim () (+ arg 1))
       (sub1-prim () (- arg 1))
       (neg-prim () (if (not (true-value? arg)) "true" "false"))
-      
-      (empty-prim ()
-        (if (not (mut-list? arg))
-            "false"
-            (cases mut-list arg
-              (a-list (vec)
-                (if (zero? (vector-length vec))
-                    "true"
-                    "false")))))
-                    
-      (is-list-prim () (if (mut-list? arg) "true" "false"))
-      
-      (head-prim ()
-        (if (not (mut-list? arg))
-            (eopl:error 'head "No es una lista")
-            (cases mut-list arg
-              (a-list (vec)
-                (if (> (vector-length vec) 0)
-                    (vector-ref vec 0)
-                    (eopl:error 'head "Lista vacía"))))))
-                    
-      (tail-prim ()
-        (if (not (mut-list? arg))
-            (eopl:error 'tail "No es una lista")
-            (cases mut-list arg
-              (a-list (vec)
-                (if (> (vector-length vec) 0)
-                    (a-list (list->vector (cdr (vector->list vec))))
-                    (eopl:error 'tail "Lista vacía"))))))
-      
-      (is-dict-prim() (if (dict-val? arg) "true" "false")))))
+      (empty-prim () (if (null? arg) "true" "false"))
+      (is-list-prim () (list? arg))
+      (head-prim () (car arg))
+      (tail-prim () (cdr arg))
+      (is-dict-prim() (dict-val? arg)))))
 
 ;========================================= TIPOS DE DATOS REFERENCIA Y BLANCO ============================================
 
@@ -720,7 +678,7 @@
     (or (number? x)
         (boolean? x)
         (null? x)
-        (mut-list? x)
+        (list? x)
         (string? x)
         (dict-val? x)
         (procval? x)

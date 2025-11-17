@@ -1,0 +1,277 @@
+todas las variables definidas con var pueden cambiar de tipo durante la ejecución o los números, cadenas y booleanos son inmutables?
+En el caso de set dictionary y set list retorna una nueva lista o modifica la lista existente.
+
+Preguntar si se puede usar make-rectangular para números complejos
+
+Preguntar si hace falta varios return
+
+Preguntar si se pueden usar sentences en reemplazo de expresiones
+
+Preguntar si las expresiones if deben retornar algo
+
+Preguntar si se pueden usar hash tables para diccionarios 	
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+prototype prototipo_base = {"id": "base"};
+
+let
+    val_a_entero = 10,
+    val_b_flotante = 10.5,
+    val_c_complejo = complex(1, 2),
+    val_d_nulo = "null",
+    val_e_cadena = "hola mundo",
+    val_f_booleano = true,
+    val_g_procedimiento = lambda() { return 0; },
+    val_h_lista = [1, false, "texto"],
+    val_i_diccionario = {"a": 1, "b": 2},
+    val_j_prototipo_clonado = clone(prototipo_base)
+;
+
+print("10 tipos de valores almacenados exitosamente.");
+
+let lista_valores = [val_a_entero , val_b_flotante , val_c_complejo , val_d_nulo , val_e_cadena , val_f_booleano , val_g_procedimiento , val_h_lista , val_i_diccionario , val_j_prototipo_clonado , prototipo_base];
+
+print(lista_valores);
+
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+let
+    X = [1, 2, 3],
+    Y = 100,
+    Z = {"a": 1, "b": 2},
+    W = "hola"
+;
+
+def F1(a) {
+    set a = [9, 9, 9]; 
+    return 0;
+}
+
+def F2(b) {
+    set b = 200;
+    return 0;
+}
+
+def F3(c) {
+    update c.a = 999;
+    return 0;
+}
+
+def F4(d) {
+    set d = "adios";
+    return 0;
+}
+
+call F1(X)
+call F2(Y)
+call F3(Z)
+call F4(W)
+
+print([X, Y, Z, W]);
+
+end
+
+------------------------------------------
+
+let
+    X = [1, 2, 3],
+    Y = 100,
+    Z = {"a": 1, "b": 2},
+    W = "hola"
+;
+
+def F1(a) {
+    set-list(a, 0, 9);
+    set-list(a, 1, 9);
+    set-list(a, 2, 9);
+    return 0;
+}
+
+def F2(b) {
+    set b = 200;
+    return 0;
+}
+
+def F3(c) {
+    set-property(c, "a", 999);
+    return 0;
+}
+
+def F4(d) {
+    set d = "adios";
+    return 0;
+}
+
+call F1(X)
+call F2(Y)
+call F3(Z)
+call F4(W)
+
+print([X, Y, Z, W]);
+
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+def map(L, F) { let x = 0;
+    if empty?(L) {
+        set x = [];
+    } else {
+        set x = create-list(
+            call F(head(L)),
+            call map(tail(L), F)
+        );
+    } return x;
+}
+
+let numeros = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+let duplicar = lambda(x) {
+    return (x * 2);
+};
+
+let numerosDuplicados = call map(numeros, duplicar);
+
+print(numerosDuplicados);
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+prototype vehiculo = {
+    "marca": "default",
+    "modelo": "default",
+
+    "setMarca": lambda(m) {
+        return set-dictionary(this, "marca", m);
+    },
+
+    "getMarca": lambda() {
+        return get this.marca;
+    },
+
+    "setModelo": lambda(m) {
+        return set-dictionary(this, "modelo", m);
+    },
+
+    "getModelo": lambda() {
+        return get this.modelo;
+    }
+};
+
+prototype moto = clone(vehiculo);
+
+update moto.cilindrada = 0;
+
+update moto.setCilindrada = lambda(c) {
+    return set-dictionary(this, "cilindrada", c);
+};
+
+update moto.getCilindrada = lambda() {
+    return get this.cilindrada;
+
+};
+
+let moto1 = clone(moto);
+let moto2 = clone(moto);
+let moto3 = clone(moto);
+
+set moto1 = method moto1.setMarca("Honda");
+set moto1 = method moto1.setModelo("CBR");
+set moto1 = method moto1.setCilindrada(600);
+
+set moto2 = method moto2.setMarca("Yamaha");
+set moto2 = method moto2.setModelo("R1");
+set moto2 = method moto2.setCilindrada(1000);
+
+set moto3 = method moto3.setMarca("Suzuki");
+set moto3 = method moto3.setModelo("GSX-R");
+set moto3 = method moto3.setCilindrada(750);
+
+print("--- Moto 1 ---");
+print(method moto1.getMarca());
+print(method moto1.getModelo());
+print(method moto1.getCilindrada());
+
+print("--- Moto 2 ---");
+print(method moto2.getMarca());
+print(method moto2.getModelo());
+print(method moto2.getCilindrada());
+
+print("--- Moto 3 ---");
+print(method moto3.getMarca());
+print(method moto3.getModelo());
+print(method moto3.getCilindrada());
+
+end
+
+
+OTRA VERSION ------------------------------
+
+prototype vehiculo = {
+    "marca": "default",
+    "modelo": "default",
+
+    "setMarca": lambda(m) {
+        set-property(this, "marca", m);
+        return 0;
+    },
+    "getMarca": lambda() {
+        return get this.marca;
+    },
+    "setModelo": lambda(m) {
+        set-property(this, "modelo", m);
+        return 0;
+    },
+    "getModelo": lambda() {
+        return get this.modelo;
+    }
+};
+
+prototype moto = clone(vehiculo);
+
+set-property(moto, "cilindrada", 0);
+
+set-property(moto, "setCilindrada", lambda(c) {
+    set-property(this, "cilindrada", c);
+    return 0;
+});
+
+set-property(moto, "getCilindrada", lambda() {
+    return get this.cilindrada;
+});
+
+let moto1 = clone(moto);
+let moto2 = clone(moto);
+let moto3 = clone(moto);
+
+method moto1.setMarca("Honda");
+method moto1.setModelo("CBR");
+method moto1.setCilindrada(600);
+
+method moto2.setMarca("Yamaha");
+method moto2.setModelo("R1");
+method moto2.setCilindrada(1000);
+
+method moto3.setMarca("Suzuki");
+method moto3.setModelo("GSX-R");
+method moto3.setCilindrada(750);
+
+print("--- Moto 1 ---");
+print(method moto1.getMarca(););
+print(method moto1.getModelo(););
+print(method moto1.getCilindrada(););
+
+print("--- Moto 2 ---");
+print(method moto2.getMarca(););
+print(method moto2.getModelo(););
+print(method moto2.getCilindrada(););
+
+print("--- Moto 3 ---");
+print(method moto3.getMarca(););
+print(method moto3.getModelo(););
+print(method moto3.getCilindrada(););
+
+end
