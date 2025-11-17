@@ -69,6 +69,7 @@ print( (10 != 5) );    // Diferente: true
 // ===========================================
 // == Primitivas relacionales con FLOTANTES
 // ===========================================
+print( "Ejemplos Float");
 print( (10.5 > 5.1) ); // Mayor que: true
 print( (10.5 < 5.1) ); // Menor que: false
 print( (10.5 >= 10.5) );// Mayor o igual que: true
@@ -80,10 +81,73 @@ print( (10.5 != 5.1) );// Diferente: true
 // == Primitivas lógicas con BOOLEANOS
 // ===========================================
 // (Tu intérprete usa los strings "true" y "false" como valores booleanos)
-
+print( "Ejemplos Bool");
 print( (true and false) ); // And: false
 print( (true or false) );  // Or: true
 print( not(true) );      // Not: false (o #f, dependiendo de tu implementación exacta de 'not')
 
 // Fin del programa
+end
+
+
+Ejercicio 7
+
+let x="Prueba";
+print(length(x));
+print(x);
+set x= (x concat "Flp");
+print(length(x));
+print(x);
+end
+
+
+Ejercicio 9
+
+def factorial (n) {
+    let res = 1;
+    
+    // Caso base: if (n <= 1) return 1;
+    if (n <= 1) {
+        set res = 1;
+    } else {
+        // Caso recursivo: return n * factorial(n-1);
+        set res = (n * call factorial( sub1(n) ));
+    }
+    
+    return res;
+}
+
+// --- Función Auxiliar 2: mapFactoriales(L) ---
+// Recibe una lista L y retorna una NUEVA lista 
+// con el factorial de cada elemento.
+def mapFactoriales (L) {
+    let newList = [];
+    
+    // Caso base: if (empty?(L)) return [];
+    if empty?(L) {
+        set newList = [];
+    } else {
+        // Caso recursivo:
+        // 1. Calcula el factorial del primer elemento
+        let headFact = call factorial( head(L) );
+        
+        // 2. Llama recursivamente al resto de la lista
+        let tailFacts = call mapFactoriales( tail(L) );
+        
+        // 3. Une (cons) el resultado 1 y 2
+        set newList = create-list( headFact, tailFacts );
+    }
+
+    return newList;
+}
+
+def juntar (l){
+// LA ÚNICA LÍNEA MODIFICADA:
+// Se usa append(l, []) para forzar el paso por valor
+let x ={"Valores":l,"factoriales":call mapFactoriales ( append(l, []) )};
+return x;
+}
+
+let A = [1, 2, 3, 4];
+print( call juntar (A));
 end
