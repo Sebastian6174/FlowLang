@@ -22,10 +22,9 @@
     (text
      ("\"" (arbno (not #\")) "\"") string)
     (boolean
-     ((or "true" "false")) string)
+     ((or "true" "false" "null")) string)
     )
   )
-
 
 ;Gramática
 (define grammar
@@ -126,6 +125,29 @@
     (expression ("values" "(" expression ")")
                 get-vals-exp)
 
+    ;; PROTOTIPOS
+    (sentence ("prototype" identifier "=" expression)
+              prototype-decl-statement)
+
+    (sentence ("update" identifier "." identifier "=" expression ";")
+              property-set-statement)
+
+    (expression ("get" expression "." identifier)
+                property-access-exp)
+
+    (expression ("method" expression "." identifier "(" (separated-list expression ",") ")")
+                method-call-exp)
+
+    (expression ("lambda" "(" (separated-list identifier ",") ")"
+                  "{" (arbno sentence) "return" expression ";" "}")
+                anon-func-exp)
+
+    (expression ("clone" "(" expression ")" ";")
+            clone-exp)
+
+    (expression ("this")
+            this-exp)
+
     ;; PRIMITIVAS
     (expression ("(" expression bin-primitive expression ")")
                 bin-primitive-exp)
@@ -134,7 +156,7 @@
                 unary-primitive-exp)
 
     ;; INVOCACIÓN DE PROCEDIMIENTOS
-    (expression ("calculate" identifier "(" (separated-list expression ",") ")")
+    (expression ("call" identifier "(" (separated-list expression ",") ")")
                app-exp)
     
     ;; PRIMITIVAS PARA ENTEROS Y FLOTANTES
@@ -198,18 +220,18 @@
 
       (vars-decl-statement (assignments)
         (let ((ids (map
-                     (lambda (a)
-                       (cases assignment a (an-assignment (id exp) id)))
-                     assignments))
+                    (lambda (a)
+                      (cases assignment a (an-assignment (id exp) id)))
+                    assignments))
               (vals (map
-                      (lambda (a)
-                        (cases assignment a (an-assignment (id exp)
-                          (eval-expression exp env))))
-                      assignments)))
+                     (lambda (a)
+                       (cases assignment a (an-assignment (id exp)
+                                                          (eval-expression exp env))))
+                     assignments)))
           (let ((wrapped-vals (map
                                (lambda (v) (direct-target v))
                                vals)))
-          (extend-env ids wrapped-vals env))))
+            (extend-env ids wrapped-vals env))))
 
       (const-decl-statement (assignments)
         (let ((ids (map
@@ -263,6 +285,44 @@
                          (direct-target (closure param-ids body-sents return-exp new-env)))
             new-env)))
 
+      (prototype-decl-statement (id exp)
+        (let ((proto-val (eval-expression exp env)))
+           (cases dict-val proto-val
+             (a-dict (keys vals proto)
+               (let ((wrapped-val (direct-target proto-val)))
+                                  (extend-env (list id) (list wrapped-val) env)))
+             (else
+                (eopl:error 'execute-sentence
+                 "La sentencia 'prototipo' debe usarse con un objeto {}. Se recibió: ~s"
+                 proto-val)))))
+      
+      (property-set-statement (obj-id id val-exp)  
+                              (let* (
+                                     (obj-ref (apply-env-ref env obj-id))
+                                     (obj (deref obj-ref))
+                                     (key id) 
+                                     (new-val (eval-expression val-exp env))
+                                     )
+                                (if (not (dict-val? obj))
+                                    (eopl:error 'execute-sentence 
+                                                "Intento de 'set' en algo que no es un objeto: ~s" obj)
+                                    (cases dict-val obj
+                                      (a-dict (keys-list vals-list proto-link)
+                                              (let* (
+                                                     (key-as-string (symbol->string key))
+                                                     (pos (list-find-position key-as-string keys-list))
+                                                     (new-obj 
+                                                      (if (number? pos)
+                                                          (let ((new-vals (list-replace-at vals-list pos new-val)))
+                                                            (a-dict keys-list new-vals proto-link))
+                                                          (let ((new-keys (cons key-as-string keys-list))
+                                                                (new-vals (cons new-val vals-list)))
+                                                            (a-dict new-keys new-vals proto-link)))))
+                                                (setref! obj-ref new-obj) 
+                                                ))))
+                                env
+                                ))
+      
       (print-statement (exp)
         (let ((val (eval-expression exp env)))
           (begin
@@ -318,6 +378,24 @@
         (for-loop id (cdr values-remaining) body-sents next-env)
         )))))
 
+;============================================== AUXILIAR PARA PROTOTIPOS =================================================
+
+(define lookup-property
+  (lambda (obj key)
+    (cases dict-val obj
+      (a-dict (keys-list vals-list proto-link)
+        (let ((key-as-string (symbol->string key)))
+          (let ((pos (list-find-position key-as-string keys-list)))
+            (if (number? pos)
+                (list-ref vals-list pos)
+                (if (equal? proto-link "null")
+                    "null"
+                    (lookup-property proto-link key))
+                ))))
+      (else 
+       (eopl:error "El objeto no es un diccionario 'dict': " obj))
+      )))
+
 ;============================================== EVALUADOR DE EXPRESIONES =================================================
 
 (define eval-expression
@@ -358,14 +436,14 @@
                                     "Los argumentos de 'append' deben ser listas."))))
 
       (ref-list-exp (lst-exp idx-exp)
-        (let ((lst (eval-expression lst-exp env))
-              (i (eval-expression idx-exp env)))
-          (if (and (list? lst)
-                   (integer? i)
-                   (>= i 0)
-                   (< i (length lst)))
-              (list-ref lst i)
-              "null")))
+                    (let ((lst (eval-expression lst-exp env))
+                          (i (eval-expression idx-exp env)))
+                      (if (and (list? lst)
+                               (integer? i)
+                               (>= i 0)
+                               (< i (length lst)))
+                          (list-ref lst i)
+                          "null")))
 
       (set-list-exp (lst-exp idx-exp val-exp)
                     (let ((lst (eval-expression lst-exp env))
@@ -381,47 +459,89 @@
 
       (dic-exp (identifiers expressions)
                (let ((keys (map (lambda (id) (eval-expression id env)) identifiers))
-                     (values (map (lambda (exp) (eval-expression exp env)) expressions)))
-                 (list 'dict keys values)))
+                     (vals (map (lambda (exp) (eval-expression exp env)) expressions)))
+                 (a-dict keys vals "null")))
       
       (ref-dic-exp (dic-exp key-exp)
                    (let ((dic (eval-expression dic-exp env))
                          (key (eval-expression key-exp env)))
-                     (if (not (and (list? dic) (eq? (car dic) 'dict)))
-                         (eopl:error 'eval-expression "Intento de acceder a algo que no es un diccionario: ~s" dic)                   
-                         (let ((keys-list (cadr dic))  
-                               (vals-list (caddr dic)))      
-                           (let ((pos (list-find-position key keys-list)))                   
-                             (if (number? pos)
-                                 (list-ref vals-list pos)
-                                 "null"))))))
-
+                     (cases dict-val dic
+                       (a-dict (keys-list vals-list proto)
+                               (let ((pos (list-find-position key keys-list)))
+                                 (if (number? pos)
+                                     (list-ref vals-list pos)
+                                     "null")))
+                       (else
+                        (eopl:error 'eval-expression "Intento de acceder a algo que no es un diccionario: ~s" dic))
+                       )))
+      
       (set-dic-exp (dic-exp key-exp val-exp)
                    (let ((dic (eval-expression dic-exp env))
                          (key (eval-expression key-exp env))
                          (new-val (eval-expression val-exp env)))
-                     (if (not (and (list? dic) (eq? (car dic) 'dict)))
-                         (eopl:error 'eval-expression "Intento de 'set' en algo que no es un diccionario: ~s" dic)
-                         (let ((keys-list (cadr dic))
-                               (vals-list (caddr dic)))
-                           (let ((pos (list-find-position key keys-list)))
-                             (if (not (number? pos))
-                                 (eopl:error 'eval-expression "Clave no encontrada en el diccionario: ~s" key)
-                                 (let ((new-vals-list (list-replace-at vals-list pos new-val)))
-                                   (list 'dict keys-list new-vals-list)
-                                   )))))))
+    
+                     (cases dict-val dic
+                       (a-dict (keys-list vals-list proto)
+                               (let ((pos (list-find-position key keys-list)))
+                                 (if (not (number? pos))
+                                     (eopl:error 'eval-expression "Clave no encontrada en el diccionario: ~s" key)
+                                     (let ((new-vals-list (list-replace-at vals-list pos new-val)))
+                                       (a-dict keys-list new-vals-list proto)
+                                       ))))
+                       (else
+                        (eopl:error 'eval-expression "Intento de 'set' en algo que no es un diccionario: ~s" dic))
+                       )))
 
       (get-keys-exp (dic-exp)
                     (let ((dic (eval-expression dic-exp env)))
-                      (if (not (and (list? dic) (eq? (car dic) 'dict)))
-                         (eopl:error 'eval-expression "Intento de 'set' en algo que no es un diccionario: ~s" dic)
-                         (cadr dic))))
+                      (cases dict-val dic
+                        (a-dict (keys vals proto)
+                                keys)
+                        (else
+                         (eopl:error 'eval-expression "Intento de 'get-keys' en algo que no es un diccionario: ~s" dic))
+                        )))
 
       (get-vals-exp (dic-exp)
                     (let ((dic (eval-expression dic-exp env)))
-                      (if (not (and (list? dic) (eq? (car dic) 'dict)))
-                         (eopl:error 'eval-expression "Intento de 'set' en algo que no es un diccionario: ~s" dic)
-                         (caddr dic))))
+                      (cases dict-val dic
+                        (a-dict (keys vals proto)
+                                vals)
+                        (else
+                         (eopl:error 'eval-expression "Intento de 'get-vals' en algo que no es un diccionario: ~s" dic))
+                        )))
+
+      (property-access-exp (obj-exp id)
+                           (let ((obj (eval-expression obj-exp env)))
+                             (lookup-property obj id)))
+
+      (method-call-exp (obj-exp id args-exps)
+        (let* (
+               (obj (eval-expression obj-exp env))
+               (proc (lookup-property obj id))
+               (args (map (lambda (exp) (eval-expression exp env))
+                          args-exps))
+              )
+          (if (not (procval? proc)) 
+              (eopl:error 'eval-expression 
+                          "Intento de llamar a un no-procedimiento: ~s" id)
+              (apply-procedure proc args obj)
+              )))
+
+      (clone-exp (proto-exp)
+        (let ((proto-obj (eval-expression proto-exp env)))
+          (if (not (dict-val? proto-obj))
+              (eopl:error 'eval-expression "Solo se pueden clonar diccionarios: ~s" proto-obj)
+              (a-dict
+               '()           
+               '()            
+               proto-obj     
+               ))))
+
+      (this-exp ()
+        (apply-env env 'this))
+
+      (anon-func-exp (ids sents return-exp)
+        (closure ids sents return-exp env))
 
       (bin-primitive-exp (rand1 op rand2)
                          (let ((arg1 (eval-expression rand1 env))
@@ -436,7 +556,7 @@
                (let ((proc (apply-env env rator))
                      (args (eval-rands rands env)))
                  (if (procval? proc)
-                     (apply-procedure proc args)
+                     (apply-procedure proc args "null")
                      (eopl:error 'eval-expression
                                  "Attempt to apply non-procedure ~s" proc))))
       )))
@@ -451,12 +571,25 @@
    (env environment?)))
 
 (define apply-procedure
-  (lambda (proc args)
+  (lambda (proc args receiver) 
     (cases procval proc
       (closure (ids body-sents return-exp env)
-        (let ((args-env (extend-env ids args env)))
+        (let ((args-env (extend-env
+                         (cons 'this ids)
+                         (cons (direct-target receiver) args)
+                         env)))
+          
           (let ((final-body-env (execute-sentence-list body-sents args-env)))
             (eval-expression return-exp final-body-env)))))))
+
+;================================================== DICCIONARIOS =========================================================
+
+(define-datatype dict-val dict-val?
+  (a-dict
+   (keys (list-of string?)) 
+   (vals (list-of expval?))
+   (proto expval?))
+  )
 
 ;=================================================== EVAL-RANDS ==========================================================
 
@@ -483,9 +616,9 @@
 
 (define true-value?
   (lambda (v)
-    (not (or (eqv? v "false")
-            (eqv? v 0)
-            (eqv? v "null")))))
+    (not (or (equal? v "false")
+            (equal? v 0)
+            (equal? v "null")))))
 
 ;================================================= STRINGS Y LISTAS ======================================================
 
@@ -523,12 +656,12 @@
                           (length arg)))
       (add1-prim () (+ arg 1))
       (sub1-prim () (- arg 1))
-      (neg-prim () (not arg))
+      (neg-prim () (if (not (true-value? arg)) "true" "false"))
       (empty-prim () (null? arg))
       (is-list-prim () (list? arg))
       (head-prim () (car arg))
       (tail-prim () (cdr arg))
-      (is-dict-prim() (eq? (car arg) 'dict)))))
+      (is-dict-prim() (dict-val? arg)))))
 
 ;========================================= TIPOS DE DATOS REFERENCIA Y BLANCO ============================================
 
@@ -548,8 +681,7 @@
         (null? x)
         (list? x)
         (string? x)
-        ;(dictionary? x)
-        ;(prototype? x)
+        (dict-val? x)
         (procval? x)
         )))
 
