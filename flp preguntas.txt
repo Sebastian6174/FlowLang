@@ -1,16 +1,3 @@
-todas las variables definidas con var pueden cambiar de tipo durante la ejecución o los números, cadenas y booleanos son inmutables?
-En el caso de set dictionary y set list retorna una nueva lista o modifica la lista existente.
-
-Preguntar si se puede usar make-rectangular para números complejos
-
-Preguntar si hace falta varios return
-
-Preguntar si se pueden usar sentences en reemplazo de expresiones
-
-Preguntar si las expresiones if deben retornar algo
-
-Preguntar si se pueden usar hash tables para diccionarios 	
-
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 prototype prototipo_base = {"id": "base"};
@@ -84,9 +71,9 @@ let
 ;
 
 def F1(a) {
-    set-list(a, 0, 9);
-    set-list(a, 1, 9);
-    set-list(a, 2, 9);
+    set-list(a, 0, 9)
+    set-list(a, 1, 9)
+    set-list(a, 2, 9)
     return 0;
 }
 

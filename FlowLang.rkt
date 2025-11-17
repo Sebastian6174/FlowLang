@@ -306,7 +306,7 @@
       (print-statement (exp)
                        (let ((val (eval-expression exp env)))
                          (begin
-                           (display val)
+                           (display (decorate val))
                            (newline)
                            )
                          )
@@ -315,6 +315,31 @@
       (expression-statement (exp)
                             (eval-expression exp env) 
                             env))))
+
+
+;=================================================== DECORATOR ==========================================================
+
+(define decorate
+  (lambda (val)
+    (cond
+      [(procval? val) "<procedure>"]
+      [(mut-list? val)
+       (cases mut-list val
+         (a-list (vec)
+           (let* ((racket-list (vector->list vec))
+                  (decorated-list (map decorate racket-list)))
+             (string-append "[" (string-join decorated-list ", ") "]"))))]
+      [(dict-val? val)
+       (cases dict-val val
+         (a-dict (fields-hash proto)
+           (let* ((pair-strings (hash-map fields-hash
+                                          (lambda (k v)
+                                            (string-append (decorate k) ":" (decorate v)))))
+                  (joined-string (string-join pair-strings ", ")))
+             (string-append "{" joined-string "}"))))]
+      [(number? val) (number->string val)]
+      [(symbol? val) (symbol->string val)]
+      [else val])))
 
 ;=============================================== AUXILIAR PARA SWITCH ====================================================
 
@@ -374,7 +399,7 @@
               (let ((val (hash-ref fields-hash key-as-string #f)))
                 (if val
                     val 
-                    (lookup-property proto-link key) 
+                    (lookup-property proto-link key)
                     ))))))))
 
 ;============================================== EVALUADOR DE EXPRESIONES =================================================
