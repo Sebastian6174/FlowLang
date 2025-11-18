@@ -369,10 +369,10 @@
       (else
        (cases case-clause (car remaining-cases)
          (a-case-clause (case-val-exp case-sents)
-                        (let ((case-val (eval-expression case-val-exp env)))
-                          (if (equal? switch-val case-val)
-                              (execute-sentence-list case-sents env)
-                              (find-winner (cdr remaining-cases))))))))))
+           (let ((case-val (eval-expression case-val-exp env)))
+             (if (equal? switch-val case-val)
+                 (execute-sentence-list case-sents env)
+                 (find-winner (cdr remaining-cases) default-sents switch-val env)))))))))
 
 ;================================================ AUXILIAR PARA WHILE ====================================================
 
