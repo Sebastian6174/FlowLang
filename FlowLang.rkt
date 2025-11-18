@@ -719,7 +719,7 @@
     (cases unary-primitive prim
       (length-prim ()
         (cond
-          ((string? arg) (- (string-length arg) 2))
+          ((string? arg) (string-length arg))
           ((mut-list? arg) (cases mut-list arg (a-list (vec frozen?) (vector-length vec))))
           (else (eopl:error 'length "No se puede aplicar 'length' a" arg))))
           
