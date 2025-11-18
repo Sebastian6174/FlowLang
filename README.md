@@ -51,7 +51,7 @@ Este fue el cambio más importante del intérprete.
     * Con las *hash tables* mutables, pudimos implementar `set-property!(this, "marca", ...)`, que modifica el objeto *en el sitio*. Esto hizo que el código de prototipos fuera limpio, ergonómico y funcionara como se espera en un lenguaje orientado a objetos.
 
 ---
-## 🛠️ Funciones Auxiliares de Racket
+## Funciones Auxiliares de Racket
 
 Para construir el intérprete, nos apoyamos en varias funciones de Racket que nos facilitaron el trabajo:
 
