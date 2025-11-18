@@ -249,6 +249,9 @@ for val in numeros {
     let rec = (1 / val);
     print("Valor:");
     print(val);
+    
+    set reciprocos = append(reciprocos, [rec]);
+    
     print("Reciprocos hasta ahora:");
     print(reciprocos);
 }
