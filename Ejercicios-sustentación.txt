@@ -232,54 +232,7 @@ let numerosDuplicados = call map(numeros, duplicar);
 
 print(numerosDuplicados);
 end
-Ejercicio 10
 
-// Ejemplo a
-
-let numeros = [1, 2, 3, 4, 5];
-let reciprocos = [];
-
-print("--- Prueba de For ---");
-
-for val in numeros {
-    let rec = (1 / val);
-    print("Valor:");
-    print(val);
-    
-    // 'append' no es mutable, así que reasignamos 'reciprocos'
-    set reciprocos = append(reciprocos, [rec]);
-    
-    print("Reciprocos hasta ahora:");
-    print(reciprocos);
-}
-
-print("Lista final de reciprocos:");
-print(reciprocos);
-
-end
-
-// Ejemplo b
-
-def esPar(n) {
-    let es_par_bool = 0;
-    if ((n % 2) == 0) {
-        set es_par_bool = true;
-    } else {
-        set es_par_bool = false;
-    }
-    return es_par_bool;
-}
-
-let i = 1;
-print("--- Prueba de While ---");
-
-while (i <= 5) {
-    print( call esPar(i) );
-    set i = (i + 1);
-}
-
-
-end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -296,10 +249,6 @@ for val in numeros {
     let rec = (1 / val);
     print("Valor:");
     print(val);
-    
-    // 'append' no es mutable, así que reasignamos 'reciprocos'
-    set reciprocos = append(reciprocos, [rec]);
-    
     print("Reciprocos hasta ahora:");
     print(reciprocos);
 }
