@@ -209,7 +209,29 @@ print( call juntar (A));
 end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Ejercicio 10
 
+def map(L, F) { let x = 0;
+    if empty?(L) {
+        set x = [];
+    } else {
+        set x = create-list(
+            call F(head(L)),
+            call map(tail(L), F)
+        );
+    } return x;
+}
+
+let numeros = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+let duplicar = lambda(x) {
+    return (x * 2);
+};
+
+let numerosDuplicados = call map(numeros, duplicar);
+
+print(numerosDuplicados);
+end
 Ejercicio 10
 
 // Ejemplo a
@@ -261,28 +283,53 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-Ejercicio 10
+Ejercicio 11
 
-def map(L, F) { let x = 0;
-    if empty?(L) {
-        set x = [];
-    } else {
-        set x = create-list(
-            call F(head(L)),
-            call map(tail(L), F)
-        );
-    } return x;
+// Ejemplo a
+
+let numeros = [1, 2, 3, 4, 5];
+let reciprocos = [];
+
+print("--- Prueba de For ---");
+
+for val in numeros {
+    let rec = (1 / val);
+    print("Valor:");
+    print(val);
+    
+    // 'append' no es mutable, así que reasignamos 'reciprocos'
+    set reciprocos = append(reciprocos, [rec]);
+    
+    print("Reciprocos hasta ahora:");
+    print(reciprocos);
 }
 
-let numeros = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+print("Lista final de reciprocos:");
+print(reciprocos);
 
-let duplicar = lambda(x) {
-    return (x * 2);
-};
+end
 
-let numerosDuplicados = call map(numeros, duplicar);
+// Ejemplo b
 
-print(numerosDuplicados);
+def esPar(n) {
+    let es_par_bool = 0;
+    if ((n % 2) == 0) {
+        set es_par_bool = true;
+    } else {
+        set es_par_bool = false;
+    }
+    return es_par_bool;
+}
+
+let i = 1;
+print("--- Prueba de While ---");
+
+while (i <= 5) {
+    print( call esPar(i) );
+    set i = (i + 1);
+}
+
+
 end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
