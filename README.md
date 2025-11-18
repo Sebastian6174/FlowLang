@@ -100,7 +100,7 @@ Para construir el intérprete, nos apoyamos en varias funciones de Racket que no
   (scan&parse "prototype miProto = {\"a\": 1}; end")
 
   ; expression-statement ("set-property!")
-  (scan&parse "let d = {}; set-property!(d, \"a\", 1); end")
+  (scan&parse "let d = {}; set-property(d, \"a\", 1); end")
 
   ; expression-statement ("method")
   (scan&parse "prototype p = {\"f\": lambda(){return 0;}}; let o = clone(p); method o.f(); end")
@@ -177,7 +177,7 @@ Para construir el intérprete, nos apoyamos en varias funciones de Racket que no
   (scan&parse "prototype p = {\"a\": 10}; print(clone(p)); end")
 
   ; this-exp ("this")
-  (scan&parse "prototype p = {\"f\": lambda(){return this;}}; let o = clone(p); print(method o.f()); end")
+  (scan&parse "prototype p = {\"f\": lambda(){return this;}}; let o = clone(p); print(method o.f();); end")
 
   ; bin-primitive-exp (Aritmética)
   (scan&parse "print((10 + 2)); end")
