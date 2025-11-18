@@ -59,7 +59,7 @@ print( (10 + 3) );     // Suma: 13
 print( (10 - 3) );     // Resta: 7
 print( (10 * 3) );     // Multiplicación: 30
 print( (10 % 3) );     // Módulo: 1
-print( (10 / 4) );     // División: 2.5 (tu intérprete usa / de Racket, que da flotantes)
+print( (10 / 4) );     // División: 2.5
 print( add1(10) );     // add1: 11
 print( sub1(10) );     // sub1: 9
 
@@ -92,7 +92,7 @@ end
 
 Ejercicio 6
 
-// == Primitivas relacionales con ENTEROS
+// Primitivas relacionales con ENTEROS
 
 print( (10 > 5) );     // Mayor que: true
 print( (10 < 5) );     // Menor que: false
@@ -101,7 +101,7 @@ print( (10 <= 5) );    // Menor o igual que: false
 print( (5 == 5) );     // Igual: true
 print( (10 != 5) );    // Diferente: true
 
-// == Primitivas relacionales con FLOTANTES 
+// Primitivas relacionales con FLOTANTES 
 
 print( (10.5 > 5.1) ); // Mayor que: true
 print( (10.5 < 5.1) ); // Menor que: false
@@ -110,11 +110,11 @@ print( (10.5 <= 5.1) );// Menor o igual que: false
 print( (5.1 == 5.1) ); // Igual: true
 print( (10.5 != 5.1) );// Diferente: true
 
-// == Primitivas lógicas con BOOLEANOS 
+// Primitivas lógicas con BOOLEANOS 
 
 print( (true and false) ); // And: false
 print( (true or false) );  // Or: true
-print( not(true) );      // Not: false (o #f, dependiendo de tu implementación exacta de 'not')
+print( not(true) );      // Not: false 
 
 end
 
