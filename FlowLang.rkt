@@ -243,9 +243,10 @@
                                            (cases assignment a (an-assignment (id exp)
                                                                               (eval-expression exp env))))
                                          assignments)))
-                              (let ((wrapped-vals (map
+                              (let* ((frozen-vals (map freeze-value vals))
+                                    (wrapped-vals (map
                                                    (lambda (v) (const-target v))
-                                                   vals)))
+                                                   frozen-vals))) 
                                 (extend-env ids wrapped-vals env))))
 
       (assignment-statement(id exp)
@@ -264,12 +265,14 @@
 
       (for-statement (id list-exp body-sents)
                      (let ((list-val (eval-expression list-exp env)))
-                       (if (not (list? list-val))
-                           (eopl:error 'execute-sentence 
+                       (if (not (mut-list? list-val))
+                           (eopl:error 'execute-sentence
                                        "La expresión en un 'for' debe ser una lista. Se recibió: ~s"
                                        list-val)
-                           (for-loop id list-val body-sents env)
-                           )))
+                           (cases mut-list list-val
+                             (a-list (vec frozen?)
+                                     (let ((values-as-racket-list (vector->list vec)))
+                                       (for-loop id values-as-racket-list body-sents env)))))))
 
       (while-statement (condition-exp sents)
                        (while-loop condition-exp sents env))
@@ -294,7 +297,7 @@
                                                   proto-val)
                                       
                                       (cases dict-val proto-val
-                                        (a-dict (fields-hash proto-link)
+                                        (a-dict (fields-hash proto-link frozen?)
                                                 (let ((wrapped-val (direct-target proto-val)))
                                                   (extend-env (list id) (list wrapped-val) env)))
                                         (else
@@ -325,21 +328,36 @@
       [(procval? val) "<procedure>"]
       [(mut-list? val)
        (cases mut-list val
-         (a-list (vec)
+         (a-list (vec frozen?)
            (let* ((racket-list (vector->list vec))
                   (decorated-list (map decorate racket-list)))
              (string-append "[" (string-join decorated-list ", ") "]"))))]
       [(dict-val? val)
-       (cases dict-val val
-         (a-dict (fields-hash proto)
-           (let* ((pair-strings (hash-map fields-hash
-                                          (lambda (k v)
-                                            (string-append (decorate k) ":" (decorate v)))))
-                  (joined-string (string-join pair-strings ", ")))
-             (string-append "{" joined-string "}"))))]
+       (let ((all-props (make-hash)))
+         (collect-all-properties val all-props)
+         (let* ((pair-strings (hash-map all-props
+                                        (lambda (k v)
+                                          (string-append (decorate k) ":" (decorate v)))))
+                (joined-string (string-join pair-strings ", ")))
+           (string-append "{" joined-string "}")))]
       [(number? val) (number->string val)]
+      [(boolean? val) (if val "#t" "#f")]
       [(symbol? val) (symbol->string val)]
       [else val])))
+
+(define collect-all-properties
+  (lambda (obj accum-hash)
+    (cond
+      [(equal? obj "null") accum-hash]
+      [(not (dict-val? obj)) accum-hash]
+      [else
+       (cases dict-val obj
+         (a-dict (fields-hash proto frozen?)
+           (collect-all-properties proto accum-hash)
+           (hash-for-each fields-hash
+                          (lambda (k v)
+                            (hash-set! accum-hash k v)))
+           accum-hash))])))
 
 ;=============================================== AUXILIAR PARA SWITCH ====================================================
 
@@ -393,7 +411,7 @@
             (eopl:error "El objeto no es un diccionario 'dict': " obj))
         
         (cases dict-val obj
-          (a-dict (fields-hash proto-link)
+          (a-dict (fields-hash proto-link frozen?)
             (let ((key-as-string (symbol->string key)))
               
               (let ((val (hash-ref fields-hash key-as-string #f)))
@@ -419,12 +437,12 @@
                              (make-rectangular a b)
                              (eopl:error 'eval-expression "Argumentos para 'complex' deben ser números"))))
 
-      (empty-exp () (a-list (vector)))
+      (empty-exp () (a-list (vector #f)))
 
       (list-exp (elements)
                 (let* ((vals (map (lambda (elem) (eval-expression elem env)) elements))
                        (vec (list->vector vals)))
-                  (a-list vec)))
+                  (a-list vec #f)))
 
       (create-list-exp (elem-exp lst-exp)
                        (let ((elem (eval-expression elem-exp env))
@@ -434,9 +452,9 @@
                                          "El segundo argumento en 'create-list' debe ser una lista. Recibido: ~s"
                                          lst)
                              (cases mut-list lst
-                               (a-list (vec)
+                               (a-list (vec frozen?)
                                        (let ((new-vec (list->vector (cons elem (vector->list vec)))))
-                                         (a-list new-vec)
+                                         (a-list new-vec #f)
                                          ))))))
 
       (append-exp (args)
@@ -449,10 +467,10 @@
                         (let ((lists-to-append (map
                                                 (lambda (m-list)
                                                   (cases mut-list m-list
-                                                    (a-list (vec) (vector->list vec))))
+                                                    (a-list (vec frozen?) (vector->list vec))))
                                                 evaluated-args)))
                           (let ((appended-list (apply append lists-to-append)))
-                            (a-list (list->vector appended-list))
+                            (a-list (list->vector appended-list) #f)
                             )))))
       
       (ref-list-exp (lst-exp idx-exp)
@@ -461,7 +479,7 @@
                       (if (not (mut-list? lst))
                           (eopl:error 'eval-expression "ref-list: no es una lista ~s" lst)
                           (cases mut-list lst
-                            (a-list (vec)
+                            (a-list (vec frozen?)
                                     (if (and (integer? i) (>= i 0) (< i (vector-length vec)))
                                         (vector-ref vec i)
                                         "null"))))))
@@ -473,12 +491,14 @@
                       (if (not (mut-list? lst))
                           (eopl:error 'eval-expression "set-list: no es una lista ~s" lst)
                           (cases mut-list lst
-                            (a-list (vec)
-                                    (if (and (integer? i) (>= i 0) (< i (vector-length vec)))
-                                        (begin
-                                          (vector-set! vec i valor)
-                                          lst) 
-                                        (eopl:error 'eval-expression "Índice inválido ~s para set-list." i)))))))
+                            (a-list (vec frozen?)
+                                    (if frozen?
+                                        (eopl:error 'set-list "No se puede mutar una lista constante")
+                                        (if (and (integer? i) (>= i 0) (< i (vector-length vec)))
+                                            (begin
+                                              (vector-set! vec i valor)
+                                              lst)
+                                            (eopl:error 'eval-expression "Índice inválido ~s para set-list." i))))))))
 
       (dic-exp (key-exps val-exps)
                (let ((keys (map (lambda (k) (eval-expression k env)) key-exps))
@@ -487,7 +507,7 @@
                  (for-each
                   (lambda (k v) (hash-set! fields-hash k v))
                   keys vals)
-                 (a-dict fields-hash "null")))
+                 (a-dict fields-hash "null" #f)))
       
       (ref-dic-exp (dic-exp key-exp)
                    (let ((dic (eval-expression dic-exp env))
@@ -496,7 +516,7 @@
                          (eopl:error 'eval-expression "Intento de 'ref-dictionary' en algo que no es un diccionario: ~s" dic)
                          
                          (cases dict-val dic
-                           (a-dict (fields-hash proto)
+                           (a-dict (fields-hash proto frozen?)
                                    (hash-ref fields-hash key "null")
                                    )))))
       
@@ -507,19 +527,21 @@
                      (if (not (dict-val? dic))
                          (eopl:error 'eval-expression "Intento de 'set-dictionary' en algo que no es un diccionario: ~s" dic)
                          (cases dict-val dic
-                           (a-dict (fields-hash proto)
-                                   (hash-set! fields-hash key new-val)
-                                   dic 
-                                   )))))
+                           (a-dict (fields-hash proto frozen?)
+                                   (if frozen?
+                                       (eopl:error 'set-dictionary "No se puede mutar un diccionario constante")
+                                       (begin
+                                         (hash-set! fields-hash key new-val)
+                                         dic)))))))
 
       (get-keys-exp (dic-exp)
                     (let ((dic (eval-expression dic-exp env)))
                       (if (not (dict-val? dic))
                           (eopl:error 'eval-expression "Intento de 'get-keys' en algo que no es un diccionario: ~s" dic)
                           (cases dict-val dic
-                            (a-dict (fields-hash proto)
+                            (a-dict (fields-hash proto frozen?)
                                     (let ((keys-as-racket-list (hash-keys fields-hash)))
-                                      (a-list (list->vector keys-as-racket-list))
+                                      (a-list ((list->vector keys-as-racket-list) #f))
                                       ))))))
 
       (get-vals-exp (dic-exp)
@@ -527,9 +549,9 @@
                       (if (not (dict-val? dic))
                           (eopl:error 'eval-expression "Intento de 'get-vals' en algo que no es un diccionario: ~s" dic)
                           (cases dict-val dic
-                            (a-dict (fields-hash proto)
+                            (a-dict (fields-hash proto frozen?)
                                     (let ((vals-as-racket-list (hash-values fields-hash)))
-                                      (a-list (list->vector vals-as-racket-list))
+                                      (a-list ((list->vector vals-as-racket-list) #f))
                                       ))))))
 
       (property-access-exp (obj-exp id)
@@ -543,9 +565,13 @@
                           (if (not (dict-val? obj))
                               (eopl:error 'eval-expression "Intento de 'set-property!' en algo que no es un diccionario: ~s" obj)
                               (cases dict-val obj
-                                (a-dict (fields-hash proto)
-                                        (hash-set! fields-hash key new-val)
-                                        obj)
+                                (a-dict (fields-hash proto frozen?)
+                                        (if frozen?
+                                            (eopl:error 'set-property! "No se puede mutar un diccionario constante")
+                                            (begin
+                                              (hash-set! fields-hash key new-val)
+                                              obj))
+                                        )
                                 ))))
 
       (method-call-exp (obj-exp id args-exps)
@@ -566,7 +592,8 @@
                        (eopl:error 'eval-expression "Solo se pueden clonar diccionarios: ~s" proto-obj)
                        (a-dict
                         (make-hash) 
-                        proto-obj   
+                        proto-obj
+                        #f
                         ))))
 
       (this-exp ()
@@ -619,14 +646,16 @@
 (define-datatype dict-val dict-val?
   (a-dict
    (fields hash?)      
-   (proto expval?))     
+   (proto expval?)
+   (frozen? boolean?))     
   )
 
 ;===================================================== LISTAS ============================================================
 
 (define-datatype mut-list mut-list?
   (a-list
-   (elements vector?)))
+   (elements vector?)
+   (frozen? boolean?)))
 
 ;=================================================== EVAL-RANDS ==========================================================
 
@@ -691,7 +720,7 @@
       (length-prim ()
         (cond
           ((string? arg) (- (string-length arg) 2))
-          ((mut-list? arg) (cases mut-list arg (a-list (vec) (vector-length vec))))
+          ((mut-list? arg) (cases mut-list arg (a-list (vec frozen?) (vector-length vec))))
           (else (eopl:error 'length "No se puede aplicar 'length' a" arg))))
           
       (add1-prim () (+ arg 1))
@@ -702,7 +731,7 @@
         (if (not (mut-list? arg))
             "false"
             (cases mut-list arg
-              (a-list (vec)
+              (a-list (vec frozen?)
                 (if (zero? (vector-length vec))
                     "true"
                     "false")))))
@@ -713,7 +742,7 @@
         (if (not (mut-list? arg))
             (eopl:error 'head "No es una lista")
             (cases mut-list arg
-              (a-list (vec)
+              (a-list (vec frozen?)
                 (if (> (vector-length vec) 0)
                     (vector-ref vec 0)
                     (eopl:error 'head "Lista vacía"))))))
@@ -722,9 +751,9 @@
         (if (not (mut-list? arg))
             (eopl:error 'tail "No es una lista")
             (cases mut-list arg
-              (a-list (vec)
+              (a-list (vec frozen?)
                 (if (> (vector-length vec) 0)
-                    (a-list (list->vector (cdr (vector->list vec))))
+                    (a-list (list->vector (cdr (vector->list vec))) #f)
                     (eopl:error 'tail "Lista vacía"))))))
       
       (is-dict-prim() (if (dict-val? arg) "true" "false")))))
@@ -880,6 +909,17 @@
     (let loop ((next 0))
       (if (>= next end) '()
         (cons next (loop (+ 1 next)))))))
+
+(define freeze-value
+  (lambda (val)
+    (cond
+      [(mut-list? val)
+       (cases mut-list val
+         (a-list (vec f) (a-list vec #t)))] 
+      [(dict-val? val)
+       (cases dict-val val
+         (a-dict (h p f) (a-dict h p #t)))] 
+      [else val])))
 
 ;======================================================= SLLGEN ==========================================================
 
