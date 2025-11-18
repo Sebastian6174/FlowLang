@@ -59,7 +59,7 @@ print( (10 + 3) );     // Suma: 13
 print( (10 - 3) );     // Resta: 7
 print( (10 * 3) );     // Multiplicación: 30
 print( (10 % 3) );     // Módulo: 1
-print( (10 / 4) );     // División: 2.5 (tu intérprete usa / de Racket, que da flotantes)
+print( (10 / 4) );     // División: 2.5
 print( add1(10) );     // add1: 11
 print( sub1(10) );     // sub1: 9
 
@@ -67,7 +67,7 @@ print( sub1(10) );     // sub1: 9
 print( (10.5 + 3.2) ); // Suma: 13.7
 print( (10.5 - 3.2) ); // Resta: 7.3
 print( (10.5 * 2.0) ); // Multiplicación: 21.0
-//print( (10.8 % 3.2) ); // Módulo: 1.2 (10.8 - 3 * 3.2)
+print( (10.8 % 3.2) ); // Módulo: 1.2 (10.8 - 3 * 3.2)
 print( (10.5 / 3.0) ); // División: 3.5
 print( add1(10.5) );   // add1: 11.5
 print( sub1(10.5) );   // sub1: 9.5
@@ -92,7 +92,7 @@ end
 
 Ejercicio 6
 
-// == Primitivas relacionales con ENTEROS
+// Primitivas relacionales con ENTEROS
 
 print( (10 > 5) );     // Mayor que: true
 print( (10 < 5) );     // Menor que: false
@@ -101,7 +101,7 @@ print( (10 <= 5) );    // Menor o igual que: false
 print( (5 == 5) );     // Igual: true
 print( (10 != 5) );    // Diferente: true
 
-// == Primitivas relacionales con FLOTANTES 
+// Primitivas relacionales con FLOTANTES 
 
 print( (10.5 > 5.1) ); // Mayor que: true
 print( (10.5 < 5.1) ); // Menor que: false
@@ -110,11 +110,11 @@ print( (10.5 <= 5.1) );// Menor o igual que: false
 print( (5.1 == 5.1) ); // Igual: true
 print( (10.5 != 5.1) );// Diferente: true
 
-// == Primitivas lógicas con BOOLEANOS 
+// Primitivas lógicas con BOOLEANOS 
 
 print( (true and false) ); // And: false
 print( (true or false) );  // Or: true
-print( not(true) );      // Not: false (o #f, dependiendo de tu implementación exacta de 'not')
+print( not(true) );      // Not: false 
 
 end
 
@@ -209,8 +209,34 @@ print( call juntar (A));
 end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 Ejercicio 10
+
+def map(L, F) { let x = 0;
+    if empty?(L) {
+        set x = [];
+    } else {
+        set x = create-list(
+            call F(head(L)),
+            call map(tail(L), F)
+        );
+    } return x;
+}
+
+let numeros = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+let duplicar = lambda(x) {
+    return (x * 2);
+};
+
+let numerosDuplicados = call map(numeros, duplicar);
+
+print(numerosDuplicados);
+end
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ejercicio 11
 
 // Ejemplo a
 
@@ -223,10 +249,6 @@ for val in numeros {
     let rec = (1 / val);
     print("Valor:");
     print(val);
-    
-    // 'append' no es mutable, así que reasignamos 'reciprocos'
-    set reciprocos = append(reciprocos, [rec]);
-    
     print("Reciprocos hasta ahora:");
     print(reciprocos);
 }
@@ -258,34 +280,6 @@ while (i <= 5) {
 
 
 end
-
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-Ejercicio 10
-
-def map(L, F) { let x = 0;
-    if empty?(L) {
-        set x = [];
-    } else {
-        set x = create-list(
-            call F(head(L)),
-            call map(tail(L), F)
-        );
-    } return x;
-}
-
-let numeros = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-let duplicar = lambda(x) {
-    return (x * 2);
-};
-
-let numerosDuplicados = call map(numeros, duplicar);
-
-print(numerosDuplicados);
-end
-
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

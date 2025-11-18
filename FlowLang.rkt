@@ -18,6 +18,8 @@
     (number
      ("-" digit (arbno digit)) number)
     (number
+     ("-" digit (arbno digit) "." digit (arbno digit)) number)
+    (number
      (digit (arbno digit) "." digit (arbno digit)) number)
     (text
      ("\"" (arbno (not #\")) "\"") string)
@@ -702,7 +704,7 @@
       (sub-prim () (- arg1 arg2))
       (div-prim () (/ arg1 arg2))
       (mult-prim () (* arg1 arg2))
-      (mod-prim () (modulo arg1 arg2))
+      (mod-prim () (flmod arg1 arg2))
       (concat-prim () (string-append arg1 arg2))
       (greater-prim () (if (> arg1 arg2) "true" "false"))
       (less-prim () (if (< arg1 arg2) "true" "false"))
@@ -801,7 +803,7 @@
                          (const-target (expval) expval)
                          (indirect-target (p)
                                           (eopl:error 'deref
-                                                      "Illegal reference: ~s" ref1)))))))
+                                                      "Referencia ilegal: ~s" ref1)))))))
 (define primitive-deref
   (lambda (ref)
     (cases reference ref
@@ -866,7 +868,7 @@
   (lambda (env sym)
     (cases environment env
       (empty-env-record ()
-                        (eopl:error 'apply-env-ref "No binding for ~s" sym))
+                        (eopl:error 'apply-env-ref "No hay ligadura para ~s" sym))
       (extended-env-record (syms vals env)
                            (let ((pos (rib-find-position sym syms)))
                              (if (number? pos)
@@ -920,6 +922,8 @@
        (cases dict-val val
          (a-dict (h p f) (a-dict h p #t)))] 
       [else val])))
+
+(define (flmod x m) (- x (* (floor (/ x m)) m)))
 
 ;======================================================= SLLGEN ==========================================================
 
