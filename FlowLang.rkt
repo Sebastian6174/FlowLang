@@ -369,10 +369,10 @@
       (else
        (cases case-clause (car remaining-cases)
          (a-case-clause (case-val-exp case-sents)
-                        (let ((case-val (eval-expression case-val-exp env)))
-                          (if (equal? switch-val case-val)
-                              (execute-sentence-list case-sents env)
-                              (find-winner (cdr remaining-cases))))))))))
+           (let ((case-val (eval-expression case-val-exp env)))
+             (if (equal? switch-val case-val)
+                 (execute-sentence-list case-sents env)
+                 (find-winner (cdr remaining-cases) default-sents switch-val env)))))))))
 
 ;================================================ AUXILIAR PARA WHILE ====================================================
 
@@ -719,7 +719,7 @@
     (cases unary-primitive prim
       (length-prim ()
         (cond
-          ((string? arg) (- (string-length arg) 2))
+          ((string? arg) (string-length arg))
           ((mut-list? arg) (cases mut-list arg (a-list (vec frozen?) (vector-length vec))))
           (else (eopl:error 'length "No se puede aplicar 'length' a" arg))))
           
