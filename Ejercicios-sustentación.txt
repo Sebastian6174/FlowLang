@@ -1,0 +1,358 @@
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Ejercicio 2
+
+prototype prototipo_base = {"id": "base"};
+
+let
+    val_a_entero = 10,
+    val_b_flotante = 10.5,
+    val_c_complejo = complex(1, 2),
+    val_d_nulo = "null",
+    val_e_cadena = "hola mundo",
+    val_f_booleano = true,
+    val_g_procedimiento = lambda() { return 0; },
+    val_h_lista = [1, false, "texto"],
+    val_i_diccionario = {"a": 1, "b": 2},
+    val_j_prototipo_clonado = clone(prototipo_base)
+;
+
+print("10 tipos de valores almacenados exitosamente.");
+
+let lista_valores = [val_a_entero , val_b_flotante , val_c_complejo , val_d_nulo , val_e_cadena , val_f_booleano , val_g_procedimiento , val_h_lista , val_i_diccionario , val_j_prototipo_clonado , prototipo_base];
+
+print(lista_valores);
+
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ejercicio 3
+
+let x=1;
+print (x);
+set x= (x+1);
+print (x);
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ejercicio 4
+
+//Ejemplo 1
+const a = 5;
+print (a);
+set a = "otra cosa";
+end
+
+//Ejemplo 2
+const  b = [1, 2, 3, 4, 5];
+set b = set-list(b, 1, "hola mundo");
+print (b);
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ejercicio 5
+
+// == Primitivas aritméticas con ENTEROS
+print( (10 + 3) );     // Suma: 13
+print( (10 - 3) );     // Resta: 7
+print( (10 * 3) );     // Multiplicación: 30
+print( (10 % 3) );     // Módulo: 1
+print( (10 / 4) );     // División: 2.5 (tu intérprete usa / de Racket, que da flotantes)
+print( add1(10) );     // add1: 11
+print( sub1(10) );     // sub1: 9
+
+// == Primitivas aritméticas con FLOTANTES
+print( (10.5 + 3.2) ); // Suma: 13.7
+print( (10.5 - 3.2) ); // Resta: 7.3
+print( (10.5 * 2.0) ); // Multiplicación: 21.0
+//print( (10.8 % 3.2) ); // Módulo: 1.2 (10.8 - 3 * 3.2)
+print( (10.5 / 3.0) ); // División: 3.5
+print( add1(10.5) );   // add1: 11.5
+print( sub1(10.5) );   // sub1: 9.5
+
+// == Primitivas aritméticas con COMPLEJOS
+
+// Suma: (5+2i) + (3+4i) = 8+6i
+print( (complex(5, 2) + complex(3, 4)) );
+
+// Resta: (5+2i) - (3+4i) = 2-2i
+print( (complex(5, 2) - complex(3, 4)) );
+
+// Multiplicación: (5+2i) * (3+4i) = (15 - 8) + (20 + 6)i = 7+26i
+print( (complex(5, 2) * complex(3, 4)) );
+
+// División: (5+2i) / (3+4i) = ( (15+8) + (6-20)i ) / (9+16) = (23 - 14i) / 25
+// Resultado: 0.92-0.56i
+print( (complex(5, 2) / complex(3, 4)) );
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ejercicio 6
+
+// == Primitivas relacionales con ENTEROS
+
+print( (10 > 5) );     // Mayor que: true
+print( (10 < 5) );     // Menor que: false
+print( (10 >= 10) );   // Mayor o igual que: true
+print( (10 <= 5) );    // Menor o igual que: false
+print( (5 == 5) );     // Igual: true
+print( (10 != 5) );    // Diferente: true
+
+// == Primitivas relacionales con FLOTANTES 
+
+print( (10.5 > 5.1) ); // Mayor que: true
+print( (10.5 < 5.1) ); // Menor que: false
+print( (10.5 >= 10.5) );// Mayor o igual que: true
+print( (10.5 <= 5.1) );// Menor o igual que: false
+print( (5.1 == 5.1) ); // Igual: true
+print( (10.5 != 5.1) );// Diferente: true
+
+// == Primitivas lógicas con BOOLEANOS 
+
+print( (true and false) ); // And: false
+print( (true or false) );  // Or: true
+print( not(true) );      // Not: false (o #f, dependiendo de tu implementación exacta de 'not')
+
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ejercicio 7
+
+let x="Prueba";
+print(length(x));
+print(x);
+set x= (x concat "Flp");
+print(length(x));
+print(x);
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ejericio 8
+
+let
+    X = [1, 2, 3],
+    Y = 100,
+    Z = {"a": 1, "b": 2},
+    W = "hola"
+;
+
+def F1(a) {
+    set-list(a, 0, 9)
+    set-list(a, 1, 9)
+    set-list(a, 2, 9)
+    return 0;
+}
+
+def F2(b) {
+    set b = 200;
+    return 0;
+}
+
+def F3(c) {
+    set-property(c, "a", 999);
+    return 0;
+}
+
+def F4(d) {
+    set d = "adios";
+    return 0;
+}
+
+call F1(X)
+call F2(Y)
+call F3(Z)
+call F4(W)
+
+print([X, Y, Z, W]);
+
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ejercicio 9
+
+def factorial (n) {
+    let res = 1;
+    if (n <= 1) {
+        set res = 1;
+    } else {
+        set res = (n * call factorial( sub1(n) ));
+    }
+    return res;
+}
+
+def mapFactoriales (L) {
+    let newList = [];
+    if empty?(L) {
+        set newList = [];
+    } else {
+        let headFact = call factorial( head(L) );
+        let tailFacts = call mapFactoriales( tail(L) );
+        set newList = create-list( headFact, tailFacts );
+    }
+
+    return newList;
+}
+
+def juntar (l){
+let x ={"Valores":l,"factoriales":call mapFactoriales ( append(l, []) )};
+return x;
+}
+
+let A = [1, 2, 3, 4];
+print( call juntar (A));
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ejercicio 10
+
+// Ejemplo a
+
+let numeros = [1, 2, 3, 4, 5];
+let reciprocos = [];
+
+print("--- Prueba de For ---");
+
+for val in numeros {
+    let rec = (1 / val);
+    print("Valor:");
+    print(val);
+    
+    // 'append' no es mutable, así que reasignamos 'reciprocos'
+    set reciprocos = append(reciprocos, [rec]);
+    
+    print("Reciprocos hasta ahora:");
+    print(reciprocos);
+}
+
+print("Lista final de reciprocos:");
+print(reciprocos);
+
+end
+
+// Ejemplo b
+
+def esPar(n) {
+    let es_par_bool = 0;
+    if ((n % 2) == 0) {
+        set es_par_bool = true;
+    } else {
+        set es_par_bool = false;
+    }
+    return es_par_bool;
+}
+
+let i = 1;
+print("--- Prueba de While ---");
+
+while (i <= 5) {
+    print( call esPar(i) );
+    set i = (i + 1);
+}
+
+
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ejercicio 10
+
+def map(L, F) { let x = 0;
+    if empty?(L) {
+        set x = [];
+    } else {
+        set x = create-list(
+            call F(head(L)),
+            call map(tail(L), F)
+        );
+    } return x;
+}
+
+let numeros = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+let duplicar = lambda(x) {
+    return (x * 2);
+};
+
+let numerosDuplicados = call map(numeros, duplicar);
+
+print(numerosDuplicados);
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ejercicio 12
+
+prototype vehiculo = {
+    "marca": "default",
+    "modelo": "default",
+
+    "setMarca": lambda(m) {
+        set-property(this, "marca", m);
+        return 0;
+    },
+    "getMarca": lambda() {
+        return get this.marca;
+    },
+    "setModelo": lambda(m) {
+        set-property(this, "modelo", m);
+        return 0;
+    },
+    "getModelo": lambda() {
+        return get this.modelo;
+    }
+};
+
+prototype moto = clone(vehiculo);
+
+set-property(moto, "cilindrada", 0);
+
+set-property(moto, "setCilindrada", lambda(c) {
+    set-property(this, "cilindrada", c);
+    return 0;
+});
+
+set-property(moto, "getCilindrada", lambda() {
+    return get this.cilindrada;
+});
+
+let moto1 = clone(moto);
+let moto2 = clone(moto);
+let moto3 = clone(moto);
+
+method moto1.setMarca("Honda");
+method moto1.setModelo("CBR");
+method moto1.setCilindrada(600);
+
+method moto2.setMarca("Yamaha");
+method moto2.setModelo("R1");
+method moto2.setCilindrada(1000);
+
+method moto3.setMarca("Suzuki");
+method moto3.setModelo("GSX-R");
+method moto3.setCilindrada(750);
+
+print("--- Moto 1 ---");
+print(method moto1.getMarca(););
+print(method moto1.getModelo(););
+print(method moto1.getCilindrada(););
+
+print("--- Moto 2 ---");
+print(method moto2.getMarca(););
+print(method moto2.getModelo(););
+print(method moto2.getCilindrada(););
+
+print("--- Moto 3 ---");
+print(method moto3.getMarca(););
+print(method moto3.getModelo(););
+print(method moto3.getCilindrada(););
+
+end
